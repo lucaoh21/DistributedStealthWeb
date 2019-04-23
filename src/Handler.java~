@@ -55,22 +55,38 @@ public class Handler implements Runnable {
 						outServer.write(request, 0, numChars);
 						outServer.flush();
 					}
-					
-					//end of stream reached
-					if (numChars == -1) {
-						
-					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				
+				try {
+				    outServer.close();
+				} catch (IOException e){
+				    e.printStackTrace();
+				}
 				
 			}
 		}.start();
-		
-		
-		//parse the input and respond to user
-		
+		// handle server to client connection 
+		int numChars;
+		try {
+		    while((numChars = inServer.read(reply, 0, reply.length)) != -1){
+			outClient.write(reply, 0, numChars);
+			outClient.flush();
+		    }
+		} catch (IOException e){
+		    e.printStackTrace();
+		} finally {
+		    try {
+			if (server != null){
+			    server.close();
+			}
+			if (client != null){
+			    socket.close();
+			}
+		    } catch (IOException e){
+			e.printStackTrace();
+		    }
+		}
 	}
 }
 

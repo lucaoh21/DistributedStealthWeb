@@ -80,8 +80,8 @@ public class Handler implements Runnable {
 			if (server != null){
 			    server.close();
 			}
-			if (client != null){
-			    client.close();
+			if (socket != null){
+			    socket.close();
 			}
 		    } catch (IOException e){
 			e.printStackTrace();
