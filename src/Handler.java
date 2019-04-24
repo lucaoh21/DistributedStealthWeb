@@ -60,11 +60,11 @@ public class Handler implements Runnable {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				try {
-				    outServer.close();
-				} catch (IOException e){
-				    e.printStackTrace();
-				}
+//				try {
+//				    //outServer.close();
+//				} catch (IOException e){
+//				    e.printStackTrace();
+//				}
 				
 			}
 		}.start();
@@ -72,8 +72,11 @@ public class Handler implements Runnable {
 		int numChars;
 		try {
 		    while((numChars = inServer.read(reply, 0, reply.length)) != -1){
-			outClient.write(reply, 0, numChars);
-			outClient.flush();
+		    	for(int i = 0; i < reply.length; i++) {
+					System.out.print(reply[i]);
+				}
+		    	outClient.write(reply, 0, numChars);
+		    	outClient.flush();
 		    }
 		} catch (IOException e){
 		    e.printStackTrace();
@@ -91,7 +94,7 @@ public class Handler implements Runnable {
 		}
 		
 		try {
-			outClient.close();
+//			outClient.close();
 			socket.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
