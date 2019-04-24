@@ -26,6 +26,7 @@ public class ProxyServer {
 		while(isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
+				System.out.println("new connection accepted");
 				
 				Thread newThread = new Thread(new Handler(socket));
 				newThread.start();

@@ -25,11 +25,9 @@ public class Handler implements Runnable {
 		char[] request = new char[1024];
 		char[] reply = new char[4096];
 		
-		String input;
 		try {
 			inClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			outClient = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-			input = inClient.readLine();
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -52,6 +50,10 @@ public class Handler implements Runnable {
 				try {
 					int numChars;
 					while((numChars = inClient.read(request, 0, request.length)) != -1) {
+
+						for(int i = 0; i < request.length; i++) {
+							System.out.print(request[i]);
+						}
 						outServer.write(request, 0, numChars);
 						outServer.flush();
 					}
@@ -86,6 +88,14 @@ public class Handler implements Runnable {
 		    } catch (IOException e){
 			e.printStackTrace();
 		    }
+		}
+		
+		try {
+			outClient.close();
+			socket.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }
