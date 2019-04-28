@@ -1,38 +1,86 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.lang.String;
+import java.util.HashMap;
+import java.io.FileReader;
 
 public class Handler implements Runnable {
-	
-	private Socket socket;
+
+	private Socket client;
 	private Socket server;
 	private BufferedReader inClient;
 	private BufferedWriter outClient;
 	private BufferedReader inServer;
 	private BufferedWriter outServer;
+	private HashMap<String, String> dist_index;
+	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
 
-	public Handler(Socket socket) {
-		this.socket = socket;
+	public Handler(Socket client, HashMap<String, String> dist_index) {
+		this.client = client;
+		this.dist_index = dist_index;
 	}
-	
+
+	class ServerThread extends Thread {
+		String host;
+		Socket server;
+		BufferedReader inServer;
+		BufferedWriter outClient;
+		char[] reply;
+
+		ServerThread(String host, Socket server, BufferedReader inServer, BufferedWriter outClient){
+			this.host = host;
+			this.server = server;
+			this.inServer = inServer;
+			this.outClient = outClient;
+			this.reply = new char[4096];
+		}
+
+		public void run() {
+			int numChars;
+			try {
+				while ((numChars = inServer.read(reply, 0, reply.length)) != -1) {
+					for (int i = 0; i < reply.length; i++) {
+						System.out.print(reply[i]);
+					}
+					outClient.write(reply, 0, numChars);
+					outClient.flush();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					server.close();
+					System.out.println("server closed");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+		}
+	}
+
 	@Override
 	public void run() {
 		
 		char[] request = new char[1024];
-		char[] reply = new char[4096];
 		
+		// set up client streams
 		try {
-			inClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			outClient = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+			inClient = new BufferedReader(new InputStreamReader(client.getInputStream()));
+			outClient = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+		// set up server connection and streams
 		try {
 			server = new Socket("54.209.66.61", 8500);
 			inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
@@ -44,64 +92,91 @@ public class Handler implements Runnable {
 			e.printStackTrace();
 		}
 		
-		//handling client to server connection
-		new Thread() {
-			public void run()  {
+		
+		// thread handling client to proxy connection
+	
+		try {
+			int numChars;
+					
+			while((numChars = inClient.read(request, 0, request.length)) != -1) {
+						
+				for(int i = 0; i < request.length; i++) {
+						
+					System.out.print(request[i]);
+				}
+						
+				// get doc and ip of machine with doc
+				System.out.println("matching");
+				String req_string = new String(request);
+				Matcher m = FILE_REGEX.matcher(req_string);
+				m.find();
+				String doc = m.group();
+				//String doc = String.copyValueOf(m.group().toCharArray(), 1, m.group().length()-1);
+				System.out.println(doc);
+				String host = "54.209.66.61";
+						
 				try {
-					int numChars;
-					while((numChars = inClient.read(request, 0, request.length)) != -1) {
-
-						for(int i = 0; i < request.length; i++) {
-							System.out.print(request[i]);
-						}
-						outServer.write(request, 0, numChars);
-						outServer.flush();
+					
+					if (dist_index.containsKey(doc)){
+						host = dist_index.get(doc);
+					} else {
+						System.out.println("doc dne");
+						System.exit(1);
 					}
+					server = new Socket(dist_index.get(doc), 8500);
+					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
+					outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
+					ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
+					serverThread.start();
+					outServer.write(request, 0, numChars);
+					outServer.flush();
+					
+				} catch (UnknownHostException e) {
+						e.printStackTrace();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+						
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally{
+					
+			// close connection
+			try {
+				client.close();
+				System.out.println("client closed");
+			} catch (IOException e){
+				e.printStackTrace();
+			}
+		}
+					
+		
+		
+		
+//		new ServerThread("host") {
+//			public void run()  {
+//				int numChars;
 //				try {
-//				    //outServer.close();
+//				    while((numChars = inServer.read(reply, 0, reply.length)) != -1){
+//				    	for(int i = 0; i < reply.length; i++) {
+//							System.out.print(reply[i]);
+//						}
+//				    	outClient.write(reply, 0, numChars);
+//				    	outClient.flush();
+//				    }
 //				} catch (IOException e){
 //				    e.printStackTrace();
+//				} finally {
+//				    try {
+//				    	server.close();
+//				    	System.out.println("server closed");
+//				    } catch (IOException e){
+//					e.printStackTrace();
+//				    }
 //				}
-				
-			}
-		}.start();
-		// handle server to client connection 
-		int numChars;
-		try {
-		    while((numChars = inServer.read(reply, 0, reply.length)) != -1){
-		    	for(int i = 0; i < reply.length; i++) {
-					System.out.print(reply[i]);
-				}
-		    	outClient.write(reply, 0, numChars);
-		    	outClient.flush();
-		    }
-		} catch (IOException e){
-		    e.printStackTrace();
-		} finally {
-		    try {
-			if (server != null){
-			    server.close();
-			}
-			if (socket != null){
-			    socket.close();
-			}
-		    } catch (IOException e){
-			e.printStackTrace();
-		    }
-		}
-		
-		try {
-//			outClient.close();
-			socket.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//					
+//			}
+//		}.start();
 	}
 }
-
-
-
