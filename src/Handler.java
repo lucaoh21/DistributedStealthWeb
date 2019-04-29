@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
+import java.net.SocketTimeoutException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -22,6 +23,7 @@ public class Handler implements Runnable {
 	private BufferedWriter outServer;
 	private HashMap<String, String> dist_index;
 	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
+	private int NumThreads = 0;
 
 	public Handler(Socket client, HashMap<String, String> dist_index) {
 		this.client = client;
@@ -47,14 +49,16 @@ public class Handler implements Runnable {
 			int numChars;
 			try {
 				while ((numChars = inServer.read(reply, 0, reply.length)) != -1) {
-					for (int i = 0; i < reply.length; i++) {
-						System.out.print(reply[i]);
-					}
+//					for (int i = 0; i < reply.length; i++) {
+//						System.out.print(reply[i]);
+//					}
 					outClient.write(reply, 0, numChars);
 					outClient.flush();
 				}
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (SocketTimeoutException e) {
+				System.out.println("socket timedout");
+			} catch (IOException e){
+				System.out.println("io exception");
 			} finally {
 				try {
 					server.close();
@@ -80,18 +84,7 @@ public class Handler implements Runnable {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		// set up server connection and streams
-		try {
-			server = new Socket("54.209.66.61", 8500);
-			inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
-			outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
-			
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
+
 		
 		// thread handling client to proxy connection
 	
@@ -100,10 +93,10 @@ public class Handler implements Runnable {
 					
 			while((numChars = inClient.read(request, 0, request.length)) != -1) {
 						
-				for(int i = 0; i < request.length; i++) {
-						
-					System.out.print(request[i]);
-				}
+//				for(int i = 0; i < request.length; i++) {
+//						
+//					System.out.print(request[i]);
+//				}
 						
 				// get doc and ip of machine with doc
 				System.out.println("matching");
@@ -121,13 +114,15 @@ public class Handler implements Runnable {
 						host = dist_index.get(doc);
 					} else {
 						System.out.println("doc dne");
-						System.exit(1);
 					}
-					server = new Socket(dist_index.get(doc), 8500);
+					server = new Socket(host, 8500);
+					server.setSoTimeout(3000);
 					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 					outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
 					ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 					serverThread.start();
+					NumThreads++;
+					System.out.println(java.lang.Thread.activeCount());
 					outServer.write(request, 0, numChars);
 					outServer.flush();
 					
@@ -135,7 +130,7 @@ public class Handler implements Runnable {
 						e.printStackTrace();
 				} catch (IOException e) {
 					e.printStackTrace();
-				}
+				} 
 						
 			}
 		} catch (IOException e) {
