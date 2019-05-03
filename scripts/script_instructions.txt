@@ -1,0 +1,4 @@
+To start backend: ./start_backend.sh
+To stop backend: ./stop_backend.sh
+To induce random failures: ./induce_failures.sh [integer between 1-100, percent of mahcines that should fail] ex. ./induce_failures 10
+

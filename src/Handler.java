@@ -54,7 +54,6 @@ public class Handler implements Runnable {
 			int numChars;
 			try {
 				while ((numChars = inServer.read(reply, 0, reply.length)) != -1) {
-
 					outClient.write(reply, 0, numChars);
 					outClient.flush();
 				}
