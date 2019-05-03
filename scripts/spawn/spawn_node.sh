@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# provide ip as first command line arg
+
+./scp_apache.sh $1
+ssh -i dahayton-keypair dahayton@$1 < ./build_apache.sh 
+./scp_proxy.sh $1

@@ -1,9 +1,0 @@
-#!/bin/sh
-#ip_address_list = /Users/DylanHR/desktop/dis-sys/ip-list
-
-for HOST in $(cat ip-list.txt)
-do
-    echo Starting Apache Server on Host: $HOST
-    ssh -i dahayton-keypair dahayton@$HOST < start_apache.sh 2>&1 | grep -v "Pseudo-terminal will not be allocated because stdin is not a terminal."
-    echo Server Started!
-done

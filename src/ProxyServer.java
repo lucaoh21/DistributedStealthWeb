@@ -10,7 +10,7 @@ import java.net.SocketException;
 
 public class ProxyServer {
 	
-	private String INDEX_PATH = "../scripts/dist-index.txt";
+	private String INDEX_PATH = "dist-index.txt";
 	private ServerSocket serverSocket;
 	private boolean isRunning;
 	private HashMap<String,String> dist_index;

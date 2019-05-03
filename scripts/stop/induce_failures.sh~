@@ -1,0 +1,12 @@
+#!/bin/bash
+
+for HOST in $(cat ip-list.txt)
+do
+    A=$(($RANDOM % 100))
+    B=$(100-$1)
+    if [ $A -gt $B ]
+	then
+	echo Shutting down $HOST
+	ssh -i dahayton-keypair dahayton@$HOST < stop_apache.sh 2>&1 | grep -v "Pseudo-terminal will not be allocated because stdin is not a terminal."
+    fi
+done

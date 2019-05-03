@@ -1,0 +1,2 @@
+#!/bin/bash
+cat ../system_config/dahayton-keypair

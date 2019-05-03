@@ -1,0 +1,3 @@
+#!/bin/bash
+
+# first commandline argument is the source server, the second is the destination server
