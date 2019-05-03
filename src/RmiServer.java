@@ -1,6 +1,7 @@
 //NOTE: USED START UP CODE FROM: https://en.wikipedia.org/wiki/Java_remote_method_invocation, 
 //http://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html#d5e49
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.lang.Float;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -35,7 +36,7 @@ public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
     public static final String MESSAGE = "Hello World";
     private static HashMap<String, ArrayList<String>> INDEX;
     private static HashMap<String,String> HOSTS;
-    private static String INDEX_PATH = "../scripts/dist-index.txt";
+    private static String INDEX_PATH = "../system_config/dist-index.txt";
 //    private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
     
     public RmiServer() throws RemoteException {
@@ -54,7 +55,8 @@ public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
 			System.out.println("load");
 			while ((line = buf_reader.readLine()) != null) {
 				String[] tokens = line.split("\\s");
-				if (tokens.length != 3) {
+				if (tokens.length != 2) {
+					System.out.println(Arrays.toString(tokens));
 					System.out.println("error reading distributed index!");
 					System.exit(1);
 				} else {

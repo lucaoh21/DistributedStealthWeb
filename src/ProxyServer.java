@@ -13,7 +13,7 @@ import java.rmi.NotBoundException;
 
 public class ProxyServer {
 	
-	private String INDEX_PATH = "dist-index.txt";
+	private String INDEX_PATH = "../system_config/dist-index.txt";
 	private ServerSocket serverSocket;
 	private boolean isRunning;
 	
