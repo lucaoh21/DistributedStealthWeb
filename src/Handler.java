@@ -12,6 +12,9 @@ import java.util.regex.Matcher;
 import java.lang.String;
 import java.util.HashMap;
 import java.io.FileReader;
+import java.rmi.Naming;
+import java.rmi.RemoteException;
+
 
 public class Handler implements Runnable {
 
@@ -24,10 +27,12 @@ public class Handler implements Runnable {
 	private HashMap<String, String> dist_index;
 	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
 	private int NumThreads = 0;
+	private RmiServerIntf replicationServer;
 
-	public Handler(Socket client, HashMap<String, String> dist_index) {
+	public Handler(Socket client, RmiServerIntf replicationServer) {
+
 		this.client = client;
-		this.dist_index = dist_index;
+		this.replicationServer = replicationServer;
 	}
 
 	class ServerThread extends Thread {
@@ -102,16 +107,14 @@ public class Handler implements Runnable {
 				m.find();
 				String doc = m.group();
 				//String doc = String.copyValueOf(m.group().toCharArray(), 1, m.group().length()-1);
-				System.out.println(doc);
-				String host = "54.209.66.61";
+				System.out.println("Doc is: " + doc);
+				String host;
+				
 						
 				try {
 					
-					if (dist_index.containsKey(doc)){
-						host = dist_index.get(doc);
-					} else {
-						System.out.println("doc dne");
-					}
+					host = replicationServer.getIP(doc);					
+					System.out.println("Host is: " + host);
 					server = new Socket(host, 8500);
 					server.setSoTimeout(3000);
 					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
@@ -122,6 +125,7 @@ public class Handler implements Runnable {
 					System.out.println(java.lang.Thread.activeCount());
 					outServer.write(request, 0, numChars);
 					outServer.flush();
+				
 					
 				} catch (UnknownHostException e) {
 						e.printStackTrace();
