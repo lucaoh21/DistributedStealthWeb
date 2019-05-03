@@ -6,17 +6,18 @@ import java.io.FileReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-
+import java.rmi.Naming;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.rmi.NotBoundException;
 
 public class ProxyServer {
 	
 	private String INDEX_PATH = "../scripts/dist-index.txt";
 	private ServerSocket serverSocket;
 	private boolean isRunning;
-	private HashMap<String,String> dist_index;
 	
 	public ProxyServer(int port) {
-		load_dist_index();
 		try {
 			serverSocket = new ServerSocket(port);
 			isRunning = true;
@@ -27,39 +28,16 @@ public class ProxyServer {
 		}
 		
 	}
-	private void load_dist_index() {
-		dist_index = new HashMap<String,String>();
-		dist_index.put("/", "54.209.66.61");
-		FileReader file;
-		try {
-			file = new FileReader(INDEX_PATH);
-			BufferedReader buf_reader = new BufferedReader(file);
-			String line;
-			System.out.println("load");
-			while((line = buf_reader.readLine()) != null){
-				String[] tokens = line.split("\\s");
-				if (tokens.length != 2){
-					System.out.println("error reading distributed index!");
-					System.exit(1);
-				} else {
-					dist_index.put(tokens[0], tokens[1]);
-				}
-			}
-		} catch (FileNotFoundException e){
-			e.printStackTrace();
-		} catch (IOException e){
-			e.printStackTrace();
-		} 
-	}
 	
-	public void listen () {
+	public void listen (RmiServerIntf replicationServer) {
 		
-		while(isRunning) {
+		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
 				System.out.println("new connection accepted");
 				
-				Thread newThread = new Thread(new Handler(socket, dist_index));
+				Thread newThread = new Thread(new Handler(socket, replicationServer));
+
 				newThread.start();
 				
 			} catch (IOException e) {
@@ -73,8 +51,17 @@ public class ProxyServer {
 		
 		int port = 8080;
 		
-		ProxyServer proxy = new ProxyServer(port);
-		proxy.listen();
+		RmiServerIntf replicationServer;
+		try {
+			replicationServer = (RmiServerIntf) Naming.lookup("//localhost/RmiServer");
+			
+			ProxyServer proxy = new ProxyServer(port);
+			proxy.listen(replicationServer);
+			
+		} catch (Exception e) {
+			System.err.println("Server exception: " + e.toString());
+		}
+	
 		
 	}
 
