@@ -15,6 +15,7 @@ public class ProxyServer {
 	
 	private String INDEX_PATH = "../system_config/dist-index.txt";
 	private ServerSocket serverSocket;
+	private static String REPLICATION_MANAGER_HOST = "54.209.66.61";
 	private boolean isRunning;
 	
 	public ProxyServer(int port) {
@@ -50,11 +51,11 @@ public class ProxyServer {
 	public static void main(String[] args) {
 		
 		int port = 8080;
-		
+		String local = "localhost";
 		RmiServerIntf replicationServer;
 		try {
-			replicationServer = (RmiServerIntf) Naming.lookup("//localhost/RmiServer");
-			
+			replicationServer = (RmiServerIntf) Naming.lookup("//"+ local + "/RmiServer");
+														
 			ProxyServer proxy = new ProxyServer(port);
 			proxy.listen(replicationServer);
 			

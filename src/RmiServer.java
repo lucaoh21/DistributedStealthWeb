@@ -42,7 +42,7 @@ public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
     public RmiServer() throws RemoteException {
         super(0);    // required to avoid the 'rmic' step, see below
     }
-    
+
     private static void loadResources() {
     	INDEX = new HashMap<String, ArrayList<String>>();
     	HOSTS = new HashMap<String,String>();
