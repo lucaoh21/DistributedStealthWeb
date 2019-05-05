@@ -1,0 +1,12 @@
+//NOTE: USED START UP CODE FROM: https://en.wikipedia.org/wiki/Java_remote_method_invocation
+import java.rmi.Naming;
+
+public class RmiClient { 
+    public static void main(String args[]) throws Exception {
+	Registry registry = LocateRegistry.getRegistry("54.209.66.61", 8099);
+	RmiServerIntf stub = (RmiServerIntf) registry.lookup("RepServer");
+	System.out.println("getting response");
+	String response = stub.getMessage(); 
+        System.out.println(stub.getIP("/doc2.html"));
+    }
+}

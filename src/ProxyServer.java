@@ -54,7 +54,7 @@ public class ProxyServer {
 		String local = "localhost";
 		RmiServerIntf replicationServer;
 		try {
-			replicationServer = (RmiServerIntf) Naming.lookup("//"+ local + "/RmiServer");
+			replicationServer = (RmiServerIntf) Naming.lookup("//"+ REPLICATION_MANAGER_HOST+ ":8099/RmiServer");
 														
 			ProxyServer proxy = new ProxyServer(port);
 			proxy.listen(replicationServer);
