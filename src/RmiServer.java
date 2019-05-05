@@ -32,7 +32,8 @@ import java.net.URISyntaxException;
 import java.lang.InterruptedException;
 
 
-public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
+public class RmiServer implements RmiServerIntf {
+    private static RmiServer obj;
     public static final String MESSAGE = "Hello World";
     private static HashMap<String, ArrayList<String>> INDEX;
     private static HashMap<String,String> HOSTS;
@@ -40,7 +41,7 @@ public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
 //    private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
     
     public RmiServer() throws RemoteException {
-        super(0);    // required to avoid the 'rmic' step, see below
+            // required to avoid the 'rmic' step, see below
     }
 
     private static void loadResources() {
@@ -183,23 +184,20 @@ public class RmiServer extends UnicastRemoteObject implements RmiServerIntf {
     
     public static void main(String args[]) throws Exception {
         System.out.println("RMI server started");
-        loadResources();
-
-        try { //special exception handler for registry creation
-            LocateRegistry.createRegistry(1099); 
-            System.out.println("java RMI registry created.");
-        } catch (RemoteException e) {
-            //do nothing, error means registry already exists
-            System.out.println("java RMI registry already exists.");
-        }
-           
+	loadResources();
+	obj = new RmiServer();
+	Registry registry = LocateRegistry.createRegistry(8099);
+	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
+        
+                
         //Instantiate RmiServer
 
-        RmiServer obj = new RmiServer();
+        //RmiServer obj = new RmiServer();
 
         // Bind this object instance to the name "RmiServer"
-        Naming.rebind("//localhost/RmiServer", obj);
-        System.out.println("PeerServer bound in registry");
+        registry.bind("RepServer", stub); 
+        //Naming.rebind("//:8097/RmiServer", obj);
+        System.out.println("RepServer bound in registry");
 //        PingThread pt = new PingThread();
 //        pt.start();
     }
