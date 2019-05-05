@@ -1,0 +1,10 @@
+1.) Configuration
+    a.) make ip pool text file (one ip per line)
+    b.) select and spawn starting set of ips
+    	i.) record the ips of this starting set in starting_ips.txt
+	ii.) run spawn_backend.sh
+    c.) upload starting distributed index
+    	i.) write dist-index.txt (doc, ip)
+	ii) run upload_starting_files.sh
+    d.) start backend servers
+    	.) run start_backend.sh

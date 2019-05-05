@@ -1,0 +1,5 @@
+#!/bin/bash
+# My first script
+#first arg is host, second arg is keypair location
+scp -i $2 ../../../src dahayton@$1:lib/proxy
+

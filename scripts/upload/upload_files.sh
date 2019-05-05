@@ -1,5 +1,5 @@
 #!/bin/bash
-FILE='dist-index.txt'
+FILE='../../system_config/dist-index.txt'
 while read LINE
 do
     ./upload.sh $LINE

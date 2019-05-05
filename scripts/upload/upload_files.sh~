@@ -2,7 +2,6 @@
 FILE='dist-index.txt'
 while read LINE
 do
-    echo $LINE
     ./upload.sh $LINE
 done < $FILE
 echo 'files uploaded!'

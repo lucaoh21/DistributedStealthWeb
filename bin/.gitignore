@@ -1,0 +1,16 @@
+/.DS_Store
+/.classpath
+/.project
+/Client.class
+/Handler$ServerThread.class
+/Handler.class
+/Makefile
+/Makefile~
+/ProxyServer.class
+/ProxyServer.java~
+/RepManager/
+/RmiClient.class
+/RmiServer.class
+/RmiServerIntf.class
+/httpcomponents-client-4.5.8/
+/RmiServer$PingThread.class
