@@ -16,17 +16,17 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
-//import org.apache.http.client.methods.*; 
-//import org.apache.http.HttpEntity;
-//import org.apache.http.HttpResponse;
-//import org.apache.http.client.ClientProtocolException;
-//import org.apache.http.conn.HttpHostConnectException;
-//import org.apache.http.client.ResponseHandler;
-//import org.apache.http.client.methods.HttpGet;
-//import org.apache.http.impl.client.CloseableHttpClient;
-//import org.apache.http.impl.client.HttpClients;
-//import org.apache.http.util.EntityUtils;
-//import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.methods.*; 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.client.utils.URIBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.lang.InterruptedException;
@@ -38,7 +38,7 @@ public class RmiServer implements RmiServerIntf {
     private static HashMap<String, ArrayList<String>> INDEX;
     private static HashMap<String,String> HOSTS;
     private static String INDEX_PATH = "../system_config/dist-index.txt";
-//    private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
+    private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
     
     public RmiServer() throws RemoteException {
             // required to avoid the 'rmic' step, see below
@@ -83,63 +83,63 @@ public class RmiServer implements RmiServerIntf {
         return MESSAGE;
     }
     
-//    private static String[] ping(String ip){
-//    	try {
-//    		URI uri = new URIBuilder()
-//    				.setScheme("http")
-//    				.setHost(ip)
-//    				.setPath("/")
-//    				.build();
-//    		HttpGet httpget = new HttpGet("http://"+ip+":8500/");
-//    		long startTime = System.nanoTime();
-//    		CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
-//    		long endTime = System.nanoTime();
-//
-//    		long duration = (endTime - startTime)/1000000;
-//
-//        	try {
-//        		response.close();
-//        		if (response.getStatusLine().getStatusCode() == 200) {
-//        			return new String[] {"healthy", Float.toString(duration)};
-//        		} else {
-//        			return new String[] {"unhealthy", Float.toString(duration)};
-//        		}
-//        	} catch (IOException e) {
-//        		e.printStackTrace();
-//        	}
-//        	
-//    	} catch (URISyntaxException e) {
-//    		e.printStackTrace();
-//    	} catch (HttpHostConnectException e) {
-//    		return new String[] {"unhealthy", "unknown"};
-//    	} catch (IOException e) {
-//    		e.printStackTrace();
-//    	} 
-//    	
-//    	
-//    	return new String[] {"unhealthy", "unknown"};
-//    }
+    private static String[] ping(String ip){
+    	try {
+    		URI uri = new URIBuilder()
+    				.setScheme("http")
+    				.setHost(ip)
+    				.setPath("/")
+    				.build();
+    		HttpGet httpget = new HttpGet("http://"+ip+":8500/");
+    		long startTime = System.nanoTime();
+    		CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
+    		long endTime = System.nanoTime();
+
+    		long duration = (endTime - startTime)/1000000;
+
+        	try {
+        		response.close();
+        		if (response.getStatusLine().getStatusCode() == 200) {
+        			return new String[] {"healthy", Float.toString(duration)};
+        		} else {
+        			return new String[] {"unhealthy", Float.toString(duration)};
+        		}
+        	} catch (IOException e) {
+        		e.printStackTrace();
+        	}
+        	
+    	} catch (URISyntaxException e) {
+    		e.printStackTrace();
+    	} catch (HttpHostConnectException e) {
+    		return new String[] {"unhealthy", "unknown"};
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	} 
+    	
+    	
+    	return new String[] {"unhealthy", "unknown"};
+    }
     
-//    private static void pingBackend(boolean v){
-//    	for (String key: HOSTS.keySet()) {
-//    		if (v) {
-//    			System.out.print("Pinging " + key + "...");
-//    		}
-//    		String[] status = ping(key);
-//    		HOSTS.put(key, status[0]);
-//    		if (v) {
-//    			System.out.print(status[0] + " " + status[1] + " ms");
-//    		}
-//    		if (v) {
-//    			System.out.println();
-//    		}
-//    	}
-//
-//    	if (v) {
-//    		System.out.println("Backend Ping Complete!");
-//    	}
-//    	
-//    }
+    private static void pingBackend(boolean v){
+    	for (String key: HOSTS.keySet()) {
+    		if (v) {
+    			System.out.print("Pinging " + key + "...");
+    		}
+    		String[] status = ping(key);
+    		HOSTS.put(key, status[0]);
+    		if (v) {
+    			System.out.print(status[0] + " " + status[1] + " ms");
+    		}
+    		if (v) {
+    			System.out.println();
+    		}
+    	}
+
+    	if (v) {
+    		System.out.println("Backend Ping Complete!");
+    	}
+    	
+    }
     
     public String getIP(String key) throws RemoteException{
 		Random rand = new Random();
@@ -164,30 +164,30 @@ public class RmiServer implements RmiServerIntf {
     	
     }
     
-//    static class PingThread extends Thread {
-//
-//
-//		PingThread(){
-//		}
-//
-//		public void run() {
-//			while(true){
-//				try {
-//					Thread.sleep(3000);
-//				} catch (InterruptedException e){
-//					e.printStackTrace();
-//				} 
-//				pingBackend(true);
-//			}
-//		}
-//	}
+    static class PingThread extends Thread {
+
+
+		PingThread(){
+		}
+
+		public void run() {
+			while(true){
+				try {
+					Thread.sleep(3000);
+				} catch (InterruptedException e){
+					e.printStackTrace();
+				} 
+				pingBackend(true);
+			}
+		}
+	}
     
     public static void main(String args[]) throws Exception {
-        System.out.println("RMI server started");
-	loadResources();
-	obj = new RmiServer();
-	Registry registry = LocateRegistry.createRegistry(8099);
-	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
+    	System.out.println("RMI server started");
+    	loadResources();
+    	obj = new RmiServer();
+    	Registry registry = LocateRegistry.createRegistry(8099);
+    	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
         
                 
         //Instantiate RmiServer
@@ -198,7 +198,7 @@ public class RmiServer implements RmiServerIntf {
         registry.bind("RepServer", stub); 
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
-//        PingThread pt = new PingThread();
-//        pt.start();
+        PingThread pt = new PingThread();
+        pt.start();
     }
 }
