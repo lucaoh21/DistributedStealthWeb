@@ -10,6 +10,9 @@ import java.rmi.Naming;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.NotBoundException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+
 
 public class ProxyServer {
 	
@@ -54,9 +57,10 @@ public class ProxyServer {
 		String local = "localhost";
 		RmiServerIntf replicationServer;
 		try {
-			replicationServer = (RmiServerIntf) Naming.lookup("//"+ REPLICATION_MANAGER_HOST+ ":8099/RmiServer");
-														
+			Registry registry = LocateRegistry.getRegistry("54.209.66.61", 8099);
+		        replicationServer = (RmiServerIntf) registry.lookup("RepServer");
 			ProxyServer proxy = new ProxyServer(port);
+			System.out.println(replicationServer.getMessage());
 			proxy.listen(replicationServer);
 			
 		} catch (Exception e) {

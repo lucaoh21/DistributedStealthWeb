@@ -115,7 +115,7 @@ public class Handler implements Runnable {
 					
 					host = replicationServer.getIP(doc);					
 					System.out.println("Host is: " + host);
-					server = new Socket(host, 8505);
+					server = new Socket(host, 8500);
 					server.setSoTimeout(3000);
 					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 					outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
