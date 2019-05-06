@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
@@ -36,18 +37,78 @@ public class RmiServer implements RmiServerIntf {
     private static RmiServer obj;
     public static final String MESSAGE = "Hello World";
     private static HashMap<String, ArrayList<String>> INDEX;
-    private static HashMap<String,String> HOSTS;
+    private static HashMap<String, ArrayList<String>> HOSTS;
+    private static HashMap<String, String> HOST_POOL;
     private static String INDEX_PATH = "../system_config/dist-index.txt";
+    private static String HOST_POOL_PATH = "../system_config/ip-list.txt";
     private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
-    
+    private static String SPAWN_CMD = "../scripts/system_commands/spawn/spawn_node.sh ";
+    private static String FILE_MOVE_CMD = "../scripts/system_commands/spawn/inter_server_scp.sh ";
+    private static String START_CMD = "../scripts/system_commands/start_node.sh ";
     public RmiServer() throws RemoteException {
             // required to avoid the 'rmic' step, see below
     }
+    private static int spawnNode(String host, ArrayList<String> docs){
+	int result = -1;
+	try {	
+		//Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
+        	//BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
+        	//String line = "";
+        	//while ((line = reader.readLine()) != null) {
+        	//	System.out.println(line);
+        	//}
+		//result = p.waitFor();
+		//System.out.println(result);
+    	} catch (Exception e){
+		e.printStackTrace();
+		return result;
+	}
+	for (String doc : docs){
+		String source = "localhost";
+		if (INDEX.containsKey(doc)){
+			source = INDEX.get(doc).get(0);
+		} else {
+			System.out.println("Lost Doc: " + doc);
+			continue;
+		}
+		try { 
+			System.out.println(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
+			Process p = Runtime.getRuntime().exec(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
+                	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                	String line = "";
+                	while ((line = reader.readLine()) != null) {
+                        	System.out.println(line);
+                	}
+                	result = p.waitFor();
+                	System.out.println(result);
+		}catch (Exception e){
+			e.printStackTrace();
+			return result;
+		}
+	}
+	try {
+		System.out.println(START_CMD + host);
+		Process p = Runtime.getRuntime().exec(START_CMD + host);
+		BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		String line = "";
+		while ((line = reader.readLine()) != null) {	
+	                System.out.println(line);
+                       
+		}        
+		result = p.waitFor();
+		System.out.println(result);
+        }catch (Exception e){
+                        e.printStackTrace();
+                        return result;
+        }
+	HOSTS.put(host, docs);
+    	return result;
+    }
     private static void loadResources() {
     	INDEX = new HashMap<String, ArrayList<String>>();
-    	HOSTS = new HashMap<String,String>();
-		//INDEX.put("/", "54.209.66.61");
+    	HOSTS = new HashMap<String,ArrayList<String>>();
 		FileReader file;
 		try {
 			file = new FileReader(INDEX_PATH);
@@ -61,14 +122,19 @@ public class RmiServer implements RmiServerIntf {
 					System.out.println("error reading distributed index!");
 					System.exit(1);
 				} else {
-					ArrayList<String> hostNames = new ArrayList<String>();
-					//starts at 1 since element 0 is the filename
-					for (int i = 1; i < tokens.length; i++) {
-						hostNames.add(tokens[i]);
+					if (INDEX.containsKey(tokens[0])){
+						INDEX.get(tokens[0]).add(tokens[1]);
+					} else {
+						INDEX.put(tokens[0], new ArrayList<String>());
+						INDEX.get(tokens[0]).add(tokens[1]);
 					}
-					
-					INDEX.put(tokens[0], hostNames);
-					HOSTS.put(tokens[1], "healthy");
+					if (HOSTS.containsKey(tokens[1])){
+                                                HOSTS.get(tokens[1]).add(tokens[0]);
+                                        } else {
+                                                HOSTS.put(tokens[1], new ArrayList<String>());
+						HOSTS.get(tokens[1]).add(tokens[0]);
+                                        }
+		
 
 				}
 			}
@@ -77,29 +143,48 @@ public class RmiServer implements RmiServerIntf {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} 
-	}
-
+	}	
+	private static void loadPool() {
+        	HOST_POOL = new HashMap<String, String>();
+                FileReader file;
+                try {
+                        file = new FileReader(HOST_POOL_PATH);
+                        BufferedReader buf_reader = new BufferedReader(file);
+                        String line;
+                        System.out.println("load");
+                        while ((line = buf_reader.readLine()) != null) {
+                        	if (!HOST_POOL.containsKey(line)){
+					HOST_POOL.put(line, "healthy");
+				}
+			}
+                } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                } catch (IOException e) {
+                        e.printStackTrace();
+                }
+        }
     public String getMessage() throws RemoteException {
         return MESSAGE;
     }
     
     private static String[] ping(String ip){
-    	try {
+    
+	try {
     		URI uri = new URIBuilder()
     				.setScheme("http")
     				.setHost(ip)
     				.setPath("/")
     				.build();
-    		HttpGet httpget = new HttpGet("http://"+ip+":8500/");
+    		HttpGet httpget = new HttpGet("http://"+ip+":8505/");
     		long startTime = System.nanoTime();
     		CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
     		long endTime = System.nanoTime();
 
     		long duration = (endTime - startTime)/1000000;
-
         	try {
         		response.close();
-        		if (response.getStatusLine().getStatusCode() == 200) {
+        		System.out.println(response.getStatusLine().getStatusCode());
+			if (response.getStatusLine().getStatusCode() == 200) {
         			return new String[] {"healthy", Float.toString(duration)};
         		} else {
         			return new String[] {"unhealthy", Float.toString(duration)};
@@ -111,8 +196,10 @@ public class RmiServer implements RmiServerIntf {
     	} catch (URISyntaxException e) {
     		e.printStackTrace();
     	} catch (HttpHostConnectException e) {
-    		return new String[] {"unhealthy", "unknown"};
-    	} catch (IOException e) {
+    		e.printStackTrace();
+		return new String[] {"unhealthy", "unknown"};
+    	
+	} catch (IOException e) {
     		e.printStackTrace();
     	} 
     	
@@ -126,7 +213,12 @@ public class RmiServer implements RmiServerIntf {
     			System.out.print("Pinging " + key + "...");
     		}
     		String[] status = ping(key);
-    		HOSTS.put(key, status[0]);
+		if (HOST_POOL.containsKey(key)){
+			HOST_POOL.put(key, status[0]);
+		} else {
+			System.out.println("FOUND A MYSTERY HOST: " + key);
+		}
+			
     		if (v) {
     			System.out.print(status[0] + " " + status[1] + " ms");
     		}
@@ -185,7 +277,11 @@ public class RmiServer implements RmiServerIntf {
     public static void main(String args[]) throws Exception {
     	System.out.println("RMI server started");
     	loadResources();
-    	obj = new RmiServer();
+	loadPool();
+	ArrayList<String> docs = new ArrayList<String>();
+	docs.add("/doc3.html");
+	docs.add("/doc4.html");
+	obj = new RmiServer();
     	Registry registry = LocateRegistry.createRegistry(8099);
     	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
         
@@ -198,7 +294,9 @@ public class RmiServer implements RmiServerIntf {
         registry.bind("RepServer", stub); 
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
-        PingThread pt = new PingThread();
+        
+	spawnNode("35.178.15.57",docs);
+	PingThread pt = new PingThread();
         pt.start();
     }
 }

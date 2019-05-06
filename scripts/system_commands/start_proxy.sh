@@ -2,4 +2,3 @@
 
 cd lib/proxy
 java ProxyServer &
-exit 
