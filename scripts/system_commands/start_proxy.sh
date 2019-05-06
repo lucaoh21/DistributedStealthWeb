@@ -1,4 +1,5 @@
 #!/bin/bash
 
 cd lib/proxy
-./start.sh
+java ProxyServer &
+exit 
