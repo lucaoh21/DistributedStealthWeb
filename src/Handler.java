@@ -28,6 +28,7 @@ public class Handler implements Runnable {
 	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
 	private int NumThreads = 0;
 	private RmiServerIntf replicationServer;
+	private StringBuilder finalOutput = new StringBuilder();
 
 	public Handler(Socket client, RmiServerIntf replicationServer) {
 
@@ -58,13 +59,15 @@ public class Handler implements Runnable {
 					outClient.flush();
 				}
 			} catch (SocketTimeoutException e) {
-				System.out.println("socket timedout");
+				finalOutput.append("Exception: socket timeout\n");
+				//System.out.println("socket timedout");
 			} catch (IOException e){
 				System.out.println("io exception");
 			} finally {
 				try {
+					finalOutput.append("Connection with server " + server.getInetAddress() + " closed\n");
 					server.close();
-					System.out.println("server closed");
+					//System.out.println("server closed");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -101,20 +104,23 @@ public class Handler implements Runnable {
 //				}
 						
 				// get doc and ip of machine with doc
-				System.out.println("matching");
+				//System.out.println("matching");
+				finalOutput.append("Matching requested file with server.");
 				String req_string = new String(request);
 				Matcher m = FILE_REGEX.matcher(req_string);
 				m.find();
 				String doc = m.group();
 				//String doc = String.copyValueOf(m.group().toCharArray(), 1, m.group().length()-1);
-				System.out.println("Doc is: " + doc);
+				//System.out.println("Doc is: " + doc);
+				finalOutput.append("Filename is: " + doc + "\n");
 				String host;
 				
 						
 				try {
 					
-					host = replicationServer.getIP(doc);					
-					System.out.println("Host is: " + host);
+					host = replicationServer.getIP(doc);
+					finalOutput.append("Host is: " + host + "\n");
+					//System.out.println("Host is: " + host);
 					server = new Socket(host, 8505);
 					server.setSoTimeout(3000);
 					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
@@ -122,10 +128,12 @@ public class Handler implements Runnable {
 					ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 					serverThread.start();
 					NumThreads++;
-					System.out.println(java.lang.Thread.activeCount());
+					finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
+					//System.out.println(java.lang.Thread.activeCount());
 					outServer.write(request, 0, numChars);
 					outServer.flush();
-				
+					System.out.println(finalOutput.toString());
+					finalOutput = new StringBuilder();			
 					
 				} catch (UnknownHostException e) {
 						e.printStackTrace();
@@ -140,39 +148,14 @@ public class Handler implements Runnable {
 					
 			// close connection
 			try {
+				finalOutput.append("Connection with client " + client.getInetAddress() + " closed\n");
 				client.close();
-				System.out.println("client closed");
+				//System.out.println("client closed");
 			} catch (IOException e){
 				e.printStackTrace();
 			}
 		}
 					
 		
-		
-		
-//		new ServerThread("host") {
-//			public void run()  {
-//				int numChars;
-//				try {
-//				    while((numChars = inServer.read(reply, 0, reply.length)) != -1){
-//				    	for(int i = 0; i < reply.length; i++) {
-//							System.out.print(reply[i]);
-//						}
-//				    	outClient.write(reply, 0, numChars);
-//				    	outClient.flush();
-//				    }
-//				} catch (IOException e){
-//				    e.printStackTrace();
-//				} finally {
-//				    try {
-//				    	server.close();
-//				    	System.out.println("server closed");
-//				    } catch (IOException e){
-//					e.printStackTrace();
-//				    }
-//				}
-//					
-//			}
-//		}.start();
 	}
 }

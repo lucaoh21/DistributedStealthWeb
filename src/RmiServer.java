@@ -114,7 +114,7 @@ public class RmiServer implements RmiServerIntf {
 			file = new FileReader(INDEX_PATH);
 			BufferedReader buf_reader = new BufferedReader(file);
 			String line;
-			System.out.println("load");
+			System.out.println("load index and reverse index");
 			while ((line = buf_reader.readLine()) != null) {
 				String[] tokens = line.split("\\s");
 				if (tokens.length != 2) {
@@ -151,7 +151,7 @@ public class RmiServer implements RmiServerIntf {
                         file = new FileReader(HOST_POOL_PATH);
                         BufferedReader buf_reader = new BufferedReader(file);
                         String line;
-                        System.out.println("load");
+                        System.out.println("load host pool");
                         while ((line = buf_reader.readLine()) != null) {
                         	if (!HOST_POOL.containsKey(line)){
 					HOST_POOL.put(line, "healthy");
@@ -278,9 +278,6 @@ public class RmiServer implements RmiServerIntf {
     	System.out.println("RMI server started");
     	loadResources();
 	loadPool();
-	ArrayList<String> docs = new ArrayList<String>();
-	docs.add("/doc3.html");
-	docs.add("/doc4.html");
 	obj = new RmiServer();
     	Registry registry = LocateRegistry.createRegistry(8099);
     	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
@@ -295,7 +292,6 @@ public class RmiServer implements RmiServerIntf {
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
         
-	spawnNode("35.178.15.57",docs);
 	PingThread pt = new PingThread();
         pt.start();
     }

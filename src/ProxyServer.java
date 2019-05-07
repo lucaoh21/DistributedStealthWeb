@@ -38,6 +38,7 @@ public class ProxyServer {
 		while (isRunning) {
 			try {
 				Socket socket = serverSocket.accept();
+				//System.out.println("New connection made with " +  socket.getInetAddress() + ":" + socket.getLocalPort());
 				System.out.println("new connection accepted");
 				
 				Thread newThread = new Thread(new Handler(socket, replicationServer));
