@@ -51,15 +51,15 @@ public class RmiServer implements RmiServerIntf {
     private static int spawnNode(String host, ArrayList<String> docs){
 	int result = -1;
 	try {	
-		//Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
-        	//BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
+        	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
-        	//String line = "";
-        	//while ((line = reader.readLine()) != null) {
-        	//	System.out.println(line);
-        	//}
-		//result = p.waitFor();
-		//System.out.println(result);
+        	String line = "";
+        	while ((line = reader.readLine()) != null) {
+        		System.out.println(line);
+        	}
+		result = p.waitFor();
+		System.out.println(result);
     	} catch (Exception e){
 		e.printStackTrace();
 		return result;
@@ -146,11 +146,11 @@ public class RmiServer implements RmiServerIntf {
 	}
 	public static String pickHost(){
 		for (String newHost : HOST_POOL.keySet()){
-			if (!HOSTS.containsKey(hostHost)){
+			if (!HOSTS.containsKey(newHost)){
 				return newHost;
 			}
 		}
-	
+		return "NO HOSTS LEFT";	
 	}	
 	private static void loadPool() {
         	HOST_POOL = new HashMap<String, String>();
@@ -224,12 +224,12 @@ public class RmiServer implements RmiServerIntf {
     		String[] status = ping(key);
 		if (HOST_POOL.containsKey(key)){
 			HOST_POOL.put(key, status[0]);
+			if (status[0] == "unhealthy"){
+                        	String newHost = pickHost();
+                        	spawnNode(newHost, HOSTS.get(key));
+                	}
 		} else {
 			System.out.println("FOUND A MYSTERY HOST: " + key);
-		}
-		if (status[0] == "unhealthy"){
-			String newHost = pickHost();
-			spawnNode(newHost);
 		}
 			
     		if (v) {
@@ -304,8 +304,8 @@ public class RmiServer implements RmiServerIntf {
         registry.bind("RepServer", stub); 
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
-        
-	PingThread pt = new PingThread();
-        pt.start();
+        spawnNode("35.178.15.57",HOSTS.get("3.14.64.40"));
+	//PingThread pt = new PingThread();
+        //pt.start();
     }
 }
