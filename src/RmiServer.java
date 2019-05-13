@@ -252,11 +252,17 @@ public class RmiServer implements RmiServerIntf {
     	if (!INDEX.containsKey(key)) {
     		List<String> keys = new ArrayList<String>(INDEX.keySet());
     		key = keys.get(rand.nextInt(keys.size()));
+    	
+    	} else {
+    		key == null;
     	}
     	
-    	int size = INDEX.get(key).size();
-    	System.out.println("Size is: " + size);
-    	return INDEX.get(key).get(rand.nextInt(size));
+    	return key;
+    	
+    	
+//    	int size = INDEX.get(key).size();
+//    	System.out.println("Size is: " + size);
+//    	return INDEX.get(key).get(rand.nextInt(size));
     	
 //    	Random       random    = new Random();
 //    	List<String> keys      = new ArrayList<String>(x.keySet());

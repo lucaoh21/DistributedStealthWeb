@@ -121,50 +121,64 @@ public class Handler implements Runnable {
 				finalOutput.append("Filename is: " + doc + "\n");
 				String host;
 				
+				/*
+				 * System attempts to use file location stored in cache. If that fails, because the
+				 * location has been changed, then an IOException will be thrown. In that case the
+				 * system queries the RMIServer for another location and updates the cache. If an
+				 * IOException is thrown using the RMI given location, the system does not loop again.
+				 */
+				int numIOExceptions = 0;
+				while(numIOExceptions < 2) {
+					try {
 						
-				try {
-					
-					host = fileLocationCache.get(doc);
-					if (host == null) {
-						finalOutput.append("Cache miss\n");
-						host = replicationServer.getIP(doc);
-						fileLocationCache.put(doc, host);
-					}
-					
-					if (host == null) {
-						String notFoundMessage = "<html><head>\n" + 
-								"<title>404 Not Found</title>\n" + 
-								"</head><body>\n" + 
-								"<h1>Not Found</h1>\n" + 
-								"<p>The requested URL " + doc + " was not found on this server.</p>\n" + 
-								"</body></html>\n";
-						//char[] response = notFoundMessage.toCharArray();
-						outClient.write(notFoundMessage);
-					} else {
-						System.out.println(fileLocationCache.printMap());
+						host = fileLocationCache.get(doc);
+						if (host == null || numIOExceptions > 0) {
+							finalOutput.append("Cache miss\n");
+							host = replicationServer.getIP(doc);
+							fileLocationCache.put(doc, host);
+							numIOExceptions += 1;
+						}
 						
-						finalOutput.append("Host is: " + host + "\n");
-						//System.out.println("Host is: " + host);
-						server = new Socket(host, 8505);
-						server.setSoTimeout(3000);
-						inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
-						outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
-						ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
-						serverThread.start();
-						NumThreads++;
-						finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
-						//System.out.println(java.lang.Thread.activeCount());
-						outServer.write(request, 0, numChars);
-						outServer.flush();
-						System.out.println(finalOutput.toString());
-						finalOutput = new StringBuilder();			
-					}
-					
-				} catch (UnknownHostException e) {
+						//the requested document is not available
+						if (host == null) {
+							String notFoundMessage = "<html><head>\n" + 
+									"<title>404 Not Found</title>\n" + 
+									"</head><body>\n" + 
+									"<h1>Not Found</h1>\n" + 
+									"<p>The requested URL " + doc + " was not found on this server.</p>\n" + 
+									"</body></html>\n";
+							//char[] response = notFoundMessage.toCharArray();
+							outClient.write(notFoundMessage);
+						} else {
+							System.out.println(fileLocationCache.printMap());
+							
+							finalOutput.append("Host is: " + host + "\n");
+							server = new Socket(host, 8505);
+							server.setSoTimeout(3000);
+							
+							inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
+							outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
+							ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
+							serverThread.start();
+							NumThreads++;
+							finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
+							
+							outServer.write(request, 0, numChars);
+							outServer.flush();
+							System.out.println(finalOutput.toString());
+							finalOutput = new StringBuilder();		
+						}
+						break;
+						
+					} catch (UnknownHostException e) {
+							e.printStackTrace();
+							break;
+					} catch (IOException e) {
+						numIOExceptions += 1;
 						e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} 
+					} 
+				}
+				
 						
 			}
 		} catch (IOException e) {
