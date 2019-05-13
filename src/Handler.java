@@ -55,7 +55,12 @@ public class Handler implements Runnable {
 		public void run() {
 			int numChars;
 			try {
+				StringBuilder testString = new StringBuilder();
 				while ((numChars = inServer.read(reply, 0, reply.length)) != -1) {
+					for(int i = 0; i < reply.length; i++) {
+						testString.append(reply[i]);
+					}
+					System.out.println("Request: " + testString.toString());
 					outClient.write(reply, 0, numChars);
 					outClient.flush();
 				}
