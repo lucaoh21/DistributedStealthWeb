@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
+import java.util.Queue;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.net.ServerSocket;
@@ -17,13 +18,14 @@ import java.rmi.registry.Registry;
 public class ProxyServer {
 	
 	private String INDEX_PATH = "../system_config/dist-index.txt";
-	private ServerSocket serverSocket;
+	private ServerSocket ServerSocket;
 	private static String REPLICATION_MANAGER_HOST = "54.209.66.61";
 	private boolean isRunning;
+	private LRUCache FileLocationCache;
 	
 	public ProxyServer(int port) {
 		try {
-			serverSocket = new ServerSocket(port);
+			ServerSocket = new ServerSocket(port);
 			isRunning = true;
 		} catch (SocketException e) {
 			e.printStackTrace();
@@ -33,15 +35,15 @@ public class ProxyServer {
 		
 	}
 	
-	public void listen (RmiServerIntf replicationServer) {
+	public void listen (RmiServerIntf replicationServer, LRUCache FileLocationCache) {
 		
 		while (isRunning) {
 			try {
-				Socket socket = serverSocket.accept();
+				Socket socket = ServerSocket.accept();
 				System.out.println("New connection made with " +  socket.getInetAddress() + ":" + socket.getLocalPort());
 				//System.out.println("new connection accepted");
 				
-				Thread newThread = new Thread(new Handler(socket, replicationServer));
+				Thread newThread = new Thread(new Handler(socket, replicationServer, FileLocationCache));
 
 				newThread.start();
 				
@@ -56,13 +58,15 @@ public class ProxyServer {
 		
 		int port = 8080;
 		String local = "localhost";
+		FileLocationCache = new LRUCache(10);
+		
 		RmiServerIntf replicationServer;
 		try {
 			Registry registry = LocateRegistry.getRegistry("54.209.66.61", 8099);
 		        replicationServer = (RmiServerIntf) registry.lookup("RepServer");
 			ProxyServer proxy = new ProxyServer(port);
 			System.out.println(replicationServer.getMessage());
-			proxy.listen(replicationServer);
+			proxy.listen(replicationServer, FileLocationCache);
 			
 		} catch (Exception e) {
 			System.err.println("Server exception: " + e.toString());

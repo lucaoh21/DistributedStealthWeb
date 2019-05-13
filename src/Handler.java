@@ -9,12 +9,12 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.Queue; 
 import java.lang.String;
 import java.util.HashMap;
 import java.io.FileReader;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
-
 
 public class Handler implements Runnable {
 
@@ -24,16 +24,17 @@ public class Handler implements Runnable {
 	private BufferedWriter outClient;
 	private BufferedReader inServer;
 	private BufferedWriter outServer;
-	private HashMap<String, String> dist_index;
 	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
 	private int NumThreads = 0;
 	private RmiServerIntf replicationServer;
 	private StringBuilder finalOutput = new StringBuilder();
+	private LRUCache fileLocationCache;
 
-	public Handler(Socket client, RmiServerIntf replicationServer) {
+	public Handler(Socket client, RmiServerIntf replicationServer, LRUCache fileLocationCache) {
 
 		this.client = client;
 		this.replicationServer = replicationServer;
+		this.fileLocationCache = fileLocationCache;
 	}
 
 	class ServerThread extends Thread {
@@ -118,7 +119,13 @@ public class Handler implements Runnable {
 						
 				try {
 					
-					host = replicationServer.getIP(doc);
+					host = fileLocationCache.get(doc);
+					if (host == null) {
+						finalOutput.append("Cache miss");
+						host = replicationServer.getIP(doc);
+						fileLocationCache.put(doc, host);
+					}
+					
 					finalOutput.append("Host is: " + host + "\n");
 					//System.out.println("Host is: " + host);
 					server = new Socket(host, 8505);
