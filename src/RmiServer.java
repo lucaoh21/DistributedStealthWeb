@@ -52,13 +52,17 @@ public class RmiServer implements RmiServerIntf {
 	int result = -1;
 	try {	
 		Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
-        	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
+	       	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		int count = 0;
         	String line = "";
+		String total_lines = "6008";
         	while ((line = reader.readLine()) != null) {
-        		System.out.println(line);
+        		System.out.print(count);
+			System.out.print("/"+total_lines +"\r");
+			count++;
         	}
 		result = p.waitFor();
+		System.out.println("Node built on " + host);
 		System.out.println(result);
     	} catch (Exception e){
 		e.printStackTrace();
@@ -82,7 +86,7 @@ public class RmiServer implements RmiServerIntf {
                         	System.out.println(line);
                 	}
                 	result = p.waitFor();
-                	System.out.println(result);
+			System.out.println(result);
 		}catch (Exception e){
 			e.printStackTrace();
 			return result;
@@ -91,19 +95,13 @@ public class RmiServer implements RmiServerIntf {
 	try {
 		System.out.println(START_CMD + host);
 		Process p = Runtime.getRuntime().exec(START_CMD + host);
-		BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		String line = "";
-		while ((line = reader.readLine()) != null) {	
-	                System.out.println(line);
-                       
-		}        
 		result = p.waitFor();
+		System.out.println("Started node on " + host);
 		System.out.println(result);
         }catch (Exception e){
                         e.printStackTrace();
                         return result;
         }
-	HOSTS.put(host, docs);
     	return result;
     }
     private static void loadResources() {
@@ -144,9 +142,10 @@ public class RmiServer implements RmiServerIntf {
 			e.printStackTrace();
 		} 
 	}
-	public static String pickHost(){
+	public static String pickHost(ArrayList<String> pickedHosts){
 		for (String newHost : HOST_POOL.keySet()){
-			if (!HOSTS.containsKey(newHost)){
+			if (!HOSTS.containsKey(newHost) && !pickedHosts.contains(newHost)){
+				pickedHosts.add(newHost);
 				return newHost;
 			}
 		}
@@ -203,21 +202,66 @@ public class RmiServer implements RmiServerIntf {
         	}
         	
     	} catch (URISyntaxException e) {
-    		e.printStackTrace();
+    		System.out.println("syntax exception");
     	} catch (HttpHostConnectException e) {
-    		e.printStackTrace();
+		System.out.println("Host exception");
 		return new String[] {"unhealthy", "unknown"};
     	
 	} catch (IOException e) {
-    		e.printStackTrace();
+		System.out.println("io exception");
     	} 
     	
     	
     	return new String[] {"unhealthy", "unknown"};
     }
     
+
+    private static synchronized void redoIndex(ArrayList<String[]> mods){
+	for (String[] mod : mods){
+		if (mod.length == 2){
+			HOSTS.put(mod[0], HOSTS.get(mod[1]));
+			HOSTS.remove(mod[1]);
+		} else if (mod.length == 1){
+			HOSTS.remove(mod[0]);
+		}
+	}
+	for (String[] mod : mods){
+		if (mod.length == 2){ 
+		        for (String doc : INDEX.keySet()){
+				if (INDEX.get(doc).contains(mod[1])){
+					INDEX.get(doc).remove(mod[1]);
+					INDEX.get(doc).add(mod[0]);
+				}
+			}
+                } else if (mod.length == 1){
+                        for (String doc : INDEX.keySet()){
+                                if (INDEX.get(doc).contains(mod[0])){
+                                        INDEX.get(doc).remove(mod[-1]);
+                                }
+                        }
+                }
+	}
+	System.out.println("index reconfigured");
+    }
+
+
+    private static void respawn(String key,ArrayList<String[]> mods, ArrayList<String> pickedHosts){
+         String newHost = pickHost(pickedHosts);
+         System.out.println("spawning on " + newHost);
+         int result = spawnNode(newHost, HOSTS.get(key));
+         if (result == 0) {
+         	mods.add(new String[] {newHost, key});
+         } else{
+                System.out.println("spawn failed");
+                mods.add(new String[] {key});
+         }
+    }
+    
     private static void pingBackend(boolean v){
-    	for (String key: HOSTS.keySet()) {
+	ArrayList<String[]> mods = new ArrayList<String[]>();
+	ArrayList<SpawnThread> threads = new ArrayList<SpawnThread>();
+    	ArrayList<String> pickedHosts = new ArrayList<String>();
+	for (String key: HOSTS.keySet()) {
     		if (v) {
     			System.out.print("Pinging " + key + "...");
     		}
@@ -225,21 +269,29 @@ public class RmiServer implements RmiServerIntf {
 		if (HOST_POOL.containsKey(key)){
 			HOST_POOL.put(key, status[0]);
 			if (status[0] == "unhealthy"){
-                        	String newHost = pickHost();
-                        	spawnNode(newHost, HOSTS.get(key));
-                	}
+                		SpawnThread re = new SpawnThread(key, mods, pickedHosts);
+        			re.start();
+				threads.add(re);	
+			}
 		} else {
 			System.out.println("FOUND A MYSTERY HOST: " + key);
 		}
-			
-    		if (v) {
-    			System.out.print(status[0] + " " + status[1] + " ms");
-    		}
-    		if (v) {
-    			System.out.println();
-    		}
     	}
-
+	System.out.println("waiting for spawning threads");
+	for (SpawnThread re : threads){
+		try {
+			re.join();
+		} catch (Exception e){
+			e.printStackTrace();
+		}
+	}
+	redoIndex(mods);
+	for (String host : HOSTS.keySet()){
+		 System.out.println(host + " -> " + Arrays.toString(HOSTS.get(host).toArray()));
+	}
+	for (String doc : INDEX.keySet()){
+		System.out.println(doc + " -> " + Arrays.toString(INDEX.get(doc).toArray()));
+	}
     	if (v) {
     		System.out.println("Backend Ping Complete!");
     	}
@@ -268,7 +320,20 @@ public class RmiServer implements RmiServerIntf {
 //    	Object randomValue = values[generator.nextInt(values.length)];
     	
     }
-    
+    static class SpawnThread extends Thread {
+		String key;
+		ArrayList<String[]> mods;
+		ArrayList<String> pickedHosts;
+                SpawnThread(String key, ArrayList<String[]> mods, ArrayList<String> pickedHosts){
+                	this.key = key;
+			this.mods = mods;
+			this.pickedHosts = pickedHosts;
+		}
+
+                public void run() {
+                	respawn(key, mods, pickedHosts);
+		}
+        }   
     static class PingThread extends Thread {
 
 
@@ -304,8 +369,8 @@ public class RmiServer implements RmiServerIntf {
         registry.bind("RepServer", stub); 
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
-        spawnNode("35.178.15.57",HOSTS.get("3.14.64.40"));
-	//PingThread pt = new PingThread();
-        //pt.start();
+        
+	PingThread pt = new PingThread();
+        pt.start();
     }
 }
