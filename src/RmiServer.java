@@ -261,6 +261,7 @@ public class RmiServer implements RmiServerIntf {
 	ArrayList<String[]> mods = new ArrayList<String[]>();
 	ArrayList<SpawnThread> threads = new ArrayList<SpawnThread>();
     	ArrayList<String> pickedHosts = new ArrayList<String>();
+	long startTime = System.nanoTime();
 	for (String key: HOSTS.keySet()) {
     		if (v) {
     			System.out.print("Pinging " + key + "...");
@@ -286,6 +287,9 @@ public class RmiServer implements RmiServerIntf {
 		}
 	}
 	redoIndex(mods);
+	long endTime = System.nanoTime();
+	long dur = (endTime - startTime)/1000000;
+	System.out.println("Spawn duration for " + Integer.toString(threads.size()) +"servers: " + Long.toString(dur));
 	for (String host : HOSTS.keySet()){
 		 System.out.println(host + " -> " + Arrays.toString(HOSTS.get(host).toArray()));
 	}
