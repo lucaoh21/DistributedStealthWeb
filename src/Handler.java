@@ -121,10 +121,12 @@ public class Handler implements Runnable {
 					
 					host = fileLocationCache.get(doc);
 					if (host == null) {
-						finalOutput.append("Cache miss");
+						finalOutput.append("Cache miss\n");
 						host = replicationServer.getIP(doc);
 						fileLocationCache.put(doc, host);
 					}
+
+					System.out.println(fileLocationCache.printMap());
 					
 					finalOutput.append("Host is: " + host + "\n");
 					//System.out.println("Host is: " + host);

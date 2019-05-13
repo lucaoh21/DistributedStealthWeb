@@ -21,7 +21,7 @@ public class ProxyServer {
 	private ServerSocket ServerSocket;
 	private static String REPLICATION_MANAGER_HOST = "54.209.66.61";
 	private boolean isRunning;
-	private LRUCache FileLocationCache;
+	private static LRUCache FileLocationCache;
 	
 	public ProxyServer(int port) {
 		try {

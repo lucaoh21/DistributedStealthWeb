@@ -31,7 +31,7 @@ public class LRUCache {
 		}
 	}
 	
-	public String printKeys() {
+	public String printMap() {
 
 		StringBuilder string = new StringBuilder();
 			

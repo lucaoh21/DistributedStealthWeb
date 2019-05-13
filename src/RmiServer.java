@@ -143,6 +143,14 @@ public class RmiServer implements RmiServerIntf {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} 
+	}
+	public static String pickHost(){
+		for (String newHost : HOST_POOL.keySet()){
+			if (!HOSTS.containsKey(hostHost)){
+				return newHost;
+			}
+		}
+	
 	}	
 	private static void loadPool() {
         	HOST_POOL = new HashMap<String, String>();
@@ -166,6 +174,7 @@ public class RmiServer implements RmiServerIntf {
     public String getMessage() throws RemoteException {
         return MESSAGE;
     }
+	
     
     private static String[] ping(String ip){
     
@@ -217,6 +226,10 @@ public class RmiServer implements RmiServerIntf {
 			HOST_POOL.put(key, status[0]);
 		} else {
 			System.out.println("FOUND A MYSTERY HOST: " + key);
+		}
+		if (status[0] == "unhealthy"){
+			String newHost = pickHost();
+			spawnNode(newHost);
 		}
 			
     		if (v) {
