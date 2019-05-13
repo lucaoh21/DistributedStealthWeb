@@ -130,24 +130,35 @@ public class Handler implements Runnable {
 						host = replicationServer.getIP(doc);
 						fileLocationCache.put(doc, host);
 					}
-
-					System.out.println(fileLocationCache.printMap());
 					
-					finalOutput.append("Host is: " + host + "\n");
-					//System.out.println("Host is: " + host);
-					server = new Socket(host, 8505);
-					server.setSoTimeout(3000);
-					inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
-					outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
-					ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
-					serverThread.start();
-					NumThreads++;
-					finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
-					//System.out.println(java.lang.Thread.activeCount());
-					outServer.write(request, 0, numChars);
-					outServer.flush();
-					System.out.println(finalOutput.toString());
-					finalOutput = new StringBuilder();			
+					if (host == null) {
+						String notFoundMessage = "<html><head>\n" + 
+								"<title>404 Not Found</title>\n" + 
+								"</head><body>\n" + 
+								"<h1>Not Found</h1>\n" + 
+								"<p>The requested URL " + doc + " was not found on this server.</p>\n" + 
+								"</body></html>\n";
+						//char[] response = notFoundMessage.toCharArray();
+						outClient.write(notFoundMessage);
+					} else {
+						System.out.println(fileLocationCache.printMap());
+						
+						finalOutput.append("Host is: " + host + "\n");
+						//System.out.println("Host is: " + host);
+						server = new Socket(host, 8505);
+						server.setSoTimeout(3000);
+						inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
+						outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
+						ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
+						serverThread.start();
+						NumThreads++;
+						finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
+						//System.out.println(java.lang.Thread.activeCount());
+						outServer.write(request, 0, numChars);
+						outServer.flush();
+						System.out.println(finalOutput.toString());
+						finalOutput = new StringBuilder();			
+					}
 					
 				} catch (UnknownHostException e) {
 						e.printStackTrace();
