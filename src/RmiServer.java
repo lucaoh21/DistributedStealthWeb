@@ -1,13 +1,14 @@
 //NOTE: USED START UP CODE FROM: https://en.wikipedia.org/wiki/Java_remote_method_invocation, 
 //http://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html#d5e49
+// util
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 import java.lang.Float;
-import java.rmi.Naming;
-import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
-import java.rmi.registry.*; 
 
+// map and streaming
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
@@ -17,7 +18,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
-import org.apache.http.client.methods.*; 
+// RMI
+import java.rmi.Naming;
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
+import java.rmi.registry.*;
+
+// client
+import org.apache.http.client.methods.*;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -32,87 +40,104 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.lang.InterruptedException;
 
+/**
+ * @author DylanHR
+ *
+ */
 
 public class RmiServer implements RmiServerIntf {
-    private static RmiServer obj;
-    public static final String MESSAGE = "Hello World";
-    private static HashMap<String, ArrayList<String>> INDEX;
-    private static HashMap<String, ArrayList<String>> HOSTS;
-    private static HashMap<String, String> HOST_POOL;
-    private static String INDEX_PATH = "../system_config/dist-index.txt";
-    private static String HOST_POOL_PATH = "../system_config/ip-list.txt";
-    private static CloseableHttpClient HTTP_CLIENT =  HttpClients.createDefault();
-    private static String SPAWN_CMD = "../scripts/system_commands/spawn/spawn_node.sh ";
-    private static String FILE_MOVE_CMD = "../scripts/system_commands/spawn/inter_server_scp.sh ";
-    private static String START_CMD = "../scripts/system_commands/start_node.sh ";
-    public RmiServer() throws RemoteException {
-            // required to avoid the 'rmic' step, see below
-    }
-    private static int spawnNode(String host, ArrayList<String> docs){
-	int result = -1;
-	try {	
-		Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
-	       	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		int count = 0;
-        	String line = "";
-		String total_lines = "6008";
-        	while ((line = reader.readLine()) != null) {
-        	//	System.out.print(count);
-		//		System.out.print("/"+total_lines +"\r");
-			count++;
-        	}
-		result = p.waitFor();
-		//System.out.println("Node built on " + host);
-		//System.out.println(result);
-    	} catch (Exception e){
-		e.printStackTrace();
-		return result;
-	}
-	for (String doc : docs){
-		String source = "localhost";
-		if (INDEX.containsKey(doc)){
-			source = INDEX.get(doc).get(0);
-		} else {
-			System.out.println("Lost Doc: " + doc);
-			continue;
-		}
-		try { 
-		//	System.out.println(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
-			Process p = Runtime.getRuntime().exec(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
-                	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+	private static RmiServer rmi;
+	public static final String MESSAGE = "Hello World";
+	private static HashMap<String, ArrayList<String>> INDEX;
+	private static HashMap<String, ArrayList<String>> HOSTS;
+	private static HashMap<String, String> HOST_POOL;
+	private static String INDEX_PATH = "../system_config/dist-index.txt";
+	private static String HOST_POOL_PATH = "../system_config/ip-list.txt";
+	private static CloseableHttpClient HTTP_CLIENT = HttpClients.createDefault();
+	private static String SPAWN_CMD = "../scripts/system_commands/spawn/spawn_node.sh ";
+	private static String FILE_MOVE_CMD = "../scripts/system_commands/spawn/inter_server_scp.sh ";
+	private static String START_CMD = "../scripts/system_commands/start_node.sh ";
 
-                	String line = "";
-                	while ((line = reader.readLine()) != null) {
-                  //      	System.out.println(line);
-                	}
-                	result = p.waitFor();
-			System.out.println(result);
-		}catch (Exception e){
+	public RmiServer() throws RemoteException {
+	}
+	
+	/**
+	 * spawnNode: Runs a set of scripts from the library to spawn a node on the given host, 
+	 * copy over the correct documents, and start both the proxy and httpd servers
+	 * @param host
+	 * @param docs
+	 * @return process_exit_code
+	 */
+	private static int spawnNode(String host, ArrayList<String> docs) {
+		int result = -1;
+		
+		// copy and build source
+		try {
+			Process p = Runtime.getRuntime().exec(SPAWN_CMD + host);
+			
+			// monitor progress
+			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			int count = 0;
+			String line = "";
+			String total_lines = "6008";
+			while ((line = reader.readLine()) != null) {
+				System.out.print(count);
+				System.out.print("/"+total_lines +"\r");
+				count++;
+			}
+			
+			result = p.waitFor();
+		} catch (Exception e) {
 			e.printStackTrace();
+			System.out.println(result);
 			return result;
 		}
+		
+		// copy documents
+		for (String doc : docs) {
+			String source = "localhost";
+			if (INDEX.containsKey(doc)) {
+				source = INDEX.get(doc).get(0);
+			} else {
+				System.out.println("Lost Doc: " + doc);
+				continue;
+			}
+			try {
+				Process p = Runtime.getRuntime().exec(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
+				result = p.waitFor();
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("Move files: " + Integer.toString(result));
+				return result;
+			}
+		}
+		
+		// start server
+		try {
+			Process p = Runtime.getRuntime().exec(START_CMD + host);
+			result = p.waitFor();
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Start Command: " + Integer.toString(result));
+			return result;
+		}
+		System.out.println("Final Exit Code: " + Integer.toString(result));
+		return result;
 	}
-	try {
-		//System.out.println(START_CMD + host);
-		Process p = Runtime.getRuntime().exec(START_CMD + host);
-		result = p.waitFor();
-		//System.out.println("Started node on " + host);
-		//System.out.println(result);
-        }catch (Exception e){
-                        e.printStackTrace();
-                        return result;
-        }
-    	return result;
-    }
-    private static void loadResources() {
-    	INDEX = new HashMap<String, ArrayList<String>>();
-    	HOSTS = new HashMap<String,ArrayList<String>>();
+	
+	/**
+	 * LoadResources: Loads the initial INDEX and HOSTS mapping from disk.
+	 *...STEALTH_WEB_HOME/system_config/dist-index.txt.
+	 */
+	private static void loadResources() {
+		INDEX = new HashMap<String, ArrayList<String>>();
+		HOSTS = new HashMap<String, ArrayList<String>>();
 		FileReader file;
 		try {
 			file = new FileReader(INDEX_PATH);
 			BufferedReader buf_reader = new BufferedReader(file);
 			String line;
-			System.out.println("load index and reverse index");
+			System.out.println("Load INDEX and HOSTS...");
 			while ((line = buf_reader.readLine()) != null) {
 				String[] tokens = line.split("\\s");
 				if (tokens.length != 2) {
@@ -120,19 +145,18 @@ public class RmiServer implements RmiServerIntf {
 					System.out.println("error reading distributed index!");
 					System.exit(1);
 				} else {
-					if (INDEX.containsKey(tokens[0])){
+					if (INDEX.containsKey(tokens[0])) {
 						INDEX.get(tokens[0]).add(tokens[1]);
 					} else {
 						INDEX.put(tokens[0], new ArrayList<String>());
 						INDEX.get(tokens[0]).add(tokens[1]);
 					}
-					if (HOSTS.containsKey(tokens[1])){
-                                                HOSTS.get(tokens[1]).add(tokens[0]);
-                                        } else {
-                                                HOSTS.put(tokens[1], new ArrayList<String>());
+					if (HOSTS.containsKey(tokens[1])) {
 						HOSTS.get(tokens[1]).add(tokens[0]);
-                                        }
-		
+					} else {
+						HOSTS.put(tokens[1], new ArrayList<String>());
+						HOSTS.get(tokens[1]).add(tokens[0]);
+					}
 
 				}
 			}
@@ -140,274 +164,316 @@ public class RmiServer implements RmiServerIntf {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
-		} 
+		}
 	}
-	public static String pickHost(ArrayList<String> pickedHosts){
-		for (String newHost : HOST_POOL.keySet()){
-			if (!HOSTS.containsKey(newHost) && !pickedHosts.contains(newHost)){
+
+
+	/**
+	 * LoadPool: Load the entire host pool from disk. STEALTH_WEB_HOME/system_config/ip-list.txt.
+	 */
+	private static void loadPool() {
+		HOST_POOL = new HashMap<String, String>();
+		FileReader file;
+		try {
+			file = new FileReader(HOST_POOL_PATH);
+			BufferedReader buf_reader = new BufferedReader(file);
+			String line;
+			System.out.println("load host pool");
+			while ((line = buf_reader.readLine()) != null) {
+				if (!HOST_POOL.containsKey(line)) {
+					HOST_POOL.put(line, "healthy");
+				}
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * pickHost: Picks a new, unused host from the HOST_POOL. Exludes all hosts in the pickedHosts
+	 * list, as well as all hosts in the HOSTS HashMap.
+	 * @param pickedHosts
+	 * @return String newHost or "NO HOSTS LEFT"
+	 */
+	public static String pickHost(ArrayList<String> pickedHosts) {
+		for (String newHost : HOST_POOL.keySet()) {
+			if (!HOSTS.containsKey(newHost) && !pickedHosts.contains(newHost)) {
 				pickedHosts.add(newHost);
 				return newHost;
 			}
 		}
-		return "NO HOSTS LEFT";	
-	}	
-	private static void loadPool() {
-        	HOST_POOL = new HashMap<String, String>();
-                FileReader file;
-                try {
-                        file = new FileReader(HOST_POOL_PATH);
-                        BufferedReader buf_reader = new BufferedReader(file);
-                        String line;
-                        System.out.println("load host pool");
-                        while ((line = buf_reader.readLine()) != null) {
-                        	if (!HOST_POOL.containsKey(line)){
-					HOST_POOL.put(line, "healthy");
-				}
-			}
-                } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                } catch (IOException e) {
-                        e.printStackTrace();
-                }
-        }
-    public String getMessage() throws RemoteException {
-        return MESSAGE;
-    }
+		return "NO HOSTS LEFT";
+	}
 	
-    
-    private static String[] ping(String ip){
-   	long startTime = System.nanoTime(); 
-	try {
-    		URI uri = new URIBuilder()
-    				.setScheme("http")
-    				.setHost(ip)
-    				.setPath("/")
-    				.build();
-    		HttpGet httpget = new HttpGet("http://"+ip+":8505/");
-    		CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
+	/**
+	 * ping: Uses the CloseAbleHTTPCLient, to ping a specific ip. The function requests the index of the web
+	 * server. If the code returned is not 200 or their is an exception, the ping returns as "unhealthy".
+	 * Otherwise, the ping returns "healthy" and the RRT for the request.
+	 * @param ip
+	 * @return String[] status {health, RRT for request}
+	 */
+	private static String[] ping(String ip) {
 		
+		// build and send response
 		try {
-        		 long endTime = System.nanoTime();
-        long duration = (endTime - startTime)/1000000;
-                System.out.print(ip + " ");
-                System.out.println(duration);
-			response.close();
-        		System.out.println(response.getStatusLine().getStatusCode());
-			if (response.getStatusLine().getStatusCode() == 200) {
-        			return new String[] {"healthy", Long.toString(duration)};
-        		} else {
-        			return new String[] {"unhealthy", Long.toString(duration)};
-        		}
-        	} catch (IOException e) {
-        		e.printStackTrace();
-        	}
-        	
-    	} catch (URISyntaxException e) {
-    		System.out.println("syntax exception");
-    	} catch (HttpHostConnectException e) {
-		System.out.println("Host exception");
-		return new String[] {"unhealthy", "unknown"};
-    	
-	} catch (IOException e) {
-		System.out.println("io exception");
-    	} 
-    	return new String[] {"unhealthy", "unknown"};
-    }
-    
-
-    private static synchronized void redoIndex(ArrayList<String[]> mods){
-	for (String[] mod : mods){
-		if (mod.length == 2){
-			HOSTS.put(mod[0], HOSTS.get(mod[1]));
-			HOSTS.remove(mod[1]);
-		} else if (mod.length == 1){
-			HOSTS.remove(mod[0]);
+			URI uri = new URIBuilder().setScheme("http").setHost(ip).setPath("/").build();
+			HttpGet httpget = new HttpGet("http://" + ip + ":8505/");
+			
+			long startTime = System.nanoTime();
+			CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
+			
+			// attempt to extract status code
+			try {
+				long endTime = System.nanoTime();
+				long duration = (endTime - startTime) / 1000000; // Milliseconds
+				response.close();
+				System.out.println(response.getStatusLine().getStatusCode());
+				if (response.getStatusLine().getStatusCode() == 200) {
+					return new String[] { "healthy", Long.toString(duration) };
+				} else {
+					return new String[] { "unhealthy", Long.toString(duration) };
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (URISyntaxException e) {
+			System.out.println("Syntax Exception");
+		} catch (HttpHostConnectException e) {
+			System.out.println("Host Exception");
+		} catch (IOException e) {
+			System.out.println("Io Exception");
 		}
+		return new String[] { "unhealthy", "unknown" };
 	}
-	for (String[] mod : mods){
-		if (mod.length == 2){ 
-		        for (String doc : INDEX.keySet()){
-				if (INDEX.get(doc).contains(mod[1])){
-					INDEX.get(doc).remove(mod[1]);
-					INDEX.get(doc).add(mod[0]);
+	
+	/**
+	 * redoIndex: This method is responsible for reconfiguring the index after a ping sweep.
+	 * While pingBackend pings each server, it will start up a new thread, spawning a node on that
+	 * server. It records each modification it makes to the service and sends these modification to 
+	 * redoIndex. If a single host is in one mod, then the most is just removed. If multiple, then
+	 * the first replaces the second
+	 * @param mods, list of service modifications 
+	 */
+	private static synchronized void redoIndex(ArrayList<String[]> mods) {
+		// reconfigure HOSTS
+		for (String[] mod : mods) {
+			if (mod.length == 2) {
+				HOSTS.put(mod[0], HOSTS.get(mod[1]));
+				HOSTS.remove(mod[1]);
+			} else if (mod.length == 1) {
+				HOSTS.remove(mod[0]);
+			}
+		}
+		
+		// reconfigure INDEX
+		for (String[] mod : mods) {
+			if (mod.length == 2) {
+				for (String doc : INDEX.keySet()) {
+					if (INDEX.get(doc).contains(mod[1])) {
+						INDEX.get(doc).remove(mod[1]);
+						INDEX.get(doc).add(mod[0]);
+					}
+				}
+			} else if (mod.length == 1) {
+				for (String doc : INDEX.keySet()) {
+					if (INDEX.get(doc).contains(mod[0])) {
+						INDEX.get(doc).remove(mod[-1]);
+					}
 				}
 			}
-                } else if (mod.length == 1){
-                        for (String doc : INDEX.keySet()){
-                                if (INDEX.get(doc).contains(mod[0])){
-                                        INDEX.get(doc).remove(mod[-1]);
-                                }
-                        }
-                }
+		}
+		System.out.println("Index Reconfigured");
 	}
-	System.out.println("index reconfigured");
-    }
-    private static void pingAll(){
-	for (String host : HOST_POOL.keySet()){
-		ping(host);
-	}
+	/**
+	 * pingAll: send a ping to every host in HOST_POOL.
+	 */
+	private static void pingAll() {
+		for (String host : HOST_POOL.keySet()) {
+			ping(host);
+		}
 	}
 
-    private static void respawn(String key,ArrayList<String[]> mods, ArrayList<String> pickedHosts){
-         String newHost = pickHost(pickedHosts);
-         System.out.println("spawning on " + newHost);
-         int result = spawnNode(newHost, HOSTS.get(key));
-         if (result == 0) {
-         	mods.add(new String[] {newHost, key});
-         } else{
-                System.out.println("spawn failed");
-                mods.add(new String[] {key});
-         }
-    }
-    
-    private static void pingBackend(boolean v){
-	ArrayList<String[]> mods = new ArrayList<String[]>();
-	ArrayList<SpawnThread> threads = new ArrayList<SpawnThread>();
-    	ArrayList<String> pickedHosts = new ArrayList<String>();
-	long startTime = System.nanoTime();
-	for (String key: HOSTS.keySet()) {
-    		if (v) {
-    			System.out.print("Pinging " + key + "...");
-    		}
-    		String[] status = ping(key);
-		if (HOST_POOL.containsKey(key)){
-			HOST_POOL.put(key, status[0]);
-			if (status[0] == "unhealthy"){
-                		SpawnThread re = new SpawnThread(key, mods, pickedHosts);
-        			re.start();
-				threads.add(re);	
-			}
+	/**
+	 * respawn: Managers the flow for the respawn mechanic. 
+	 * @param old_host: the old_host being replaced/
+	 * @param mods: the list of modification to the system.
+	 * @param pickedHosts: the hosts already picked for spawn in this ping sweep.
+	 */
+	private static void respawn(String old_host, ArrayList<String[]> mods, ArrayList<String> pickedHosts) {
+		String newHost = pickHost(pickedHosts);
+		System.out.println("spawning on " + newHost);
+		int result = spawnNode(newHost, HOSTS.get(old_host));
+		if (result == 0) {
+			mods.add(new String[] { newHost, old_host });
 		} else {
-			System.out.println("FOUND A MYSTERY HOST: " + key);
-		}
-    	}
-	System.out.println("waiting for spawning threads");
-	for (SpawnThread re : threads){
-		try {
-			re.join();
-		} catch (Exception e){
-			e.printStackTrace();
+			System.out.println("spawn failed");
+			mods.add(new String[] { old_host });
 		}
 	}
-	redoIndex(mods);
-	long endTime = System.nanoTime();
-	long dur = (endTime - startTime)/1000000;
-	System.out.println("Spawn duration for " + Integer.toString(threads.size()) +"servers: " + Long.toString(dur));
-	for (String host : HOSTS.keySet()){
-		 System.out.println(host + " -> " + Arrays.toString(HOSTS.get(host).toArray()));
+
+	/**
+	 * pringBackend: pings each web server, if one fails it starts a new thread respawning that server.
+	 * Repairs index. Prints out the INDEX and HOSTS maps.
+	 * @param v: bool, print status info
+	 */
+	private static void pingBackend(boolean v) {
+		ArrayList<String[]> mods = new ArrayList<String[]>();
+		ArrayList<SpawnThread> threads = new ArrayList<SpawnThread>();
+		ArrayList<String> pickedHosts = new ArrayList<String>();
+		long startTime = System.nanoTime();
+		for (String old_host : HOSTS.keySet()) {
+			if (v) {
+				System.out.print("Pinging " + old_host + "...");
+			}
+			String[] status = ping(old_host);
+			if (HOST_POOL.containsKey(old_host)) {
+				HOST_POOL.put(old_host, status[0]);
+				if (status[0] == "unhealthy") {
+					SpawnThread re = new SpawnThread(old_host, mods, pickedHosts);
+					re.start();
+					threads.add(re);
+				}
+			} else {
+				System.out.println("FOUND A MYSTERY HOST: " + old_host);
+			}
+		}
+		System.out.println("waiting for spawning threads");
+		for (SpawnThread re : threads) {
+			try {
+				re.join();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		redoIndex(mods);
+		long endTime = System.nanoTime();
+		long dur = (endTime - startTime) / 1000000;
+		if (v) {System.out.println("Spawn duration for " + Integer.toString(threads.size()) + "servers: " + Long.toString(dur));}
+		for (String host : HOSTS.keySet()) {
+			if (v) {System.out.println(host + " -> " + Arrays.toString(HOSTS.get(host).toArray()));}
+		}
+		for (String doc : INDEX.keySet()) {
+			if (v) {System.out.println(doc + " -> " + Arrays.toString(INDEX.get(doc).toArray()));}
+		}
+		if (v) {
+			if (v) {System.out.println("Backend Ping Complete!");}
+		}
+
 	}
-	for (String doc : INDEX.keySet()){
-		System.out.println(doc + " -> " + Arrays.toString(INDEX.get(doc).toArray()));
+	
+	/**
+	 * getMessage: RMI method, for testing connection to RMI server.
+	 */
+	public String getMessage() throws RemoteException {
+		return MESSAGE;
 	}
-    	if (v) {
-    		System.out.println("Backend Ping Complete!");
-    	}
-    	
-    }
-    
-    public String getIP(String key) throws RemoteException{
+
+	/**
+	 * getIP: RMI method, get ip with the specified key. Picks a random ip from set
+	 */
+	public String getIP(String key) throws RemoteException {
 		Random rand = new Random();
 
-    	if (!INDEX.containsKey(key)) {
-    		List<String> keys = new ArrayList<String>(INDEX.keySet());
-    		key = keys.get(rand.nextInt(keys.size()));
-    	
-    	} else {
-    		key = null;
-    	}
-    	
-    	return key;
-    	
-    	
-//    	int size = INDEX.get(key).size();
-//    	System.out.println("Size is: " + size);
-//    	return INDEX.get(key).get(rand.nextInt(size));
-    	
-//    	Random       random    = new Random();
-//    	List<String> keys      = new ArrayList<String>(x.keySet());
-//    	String       randomKey = keys.get( random.nextInt(keys.size()) );
-//    	String       value     = x.get(randomKey);
-//    	
-//    	Random generator = new Random();
-//    	Object[] values = myHashMap.values().toArray();
-//    	Object randomValue = values[generator.nextInt(values.length)];
-    	
-    }
-    static class SpawnThread extends Thread {
-		String key;
+		if (!INDEX.containsKey(key)) {
+			List<String> keys = new ArrayList<String>(INDEX.keySet());
+			key = keys.get(rand.nextInt(keys.size()));
+
+		} else {
+			key = null;
+		}
+
+		return key;
+	}
+
+	/**
+	 * SpawnThread: a Thread for concurrently spawning new hosts. Essentially a wrapper for respawn()
+	 * @author DylanHR
+	 *
+	 */
+	static class SpawnThread extends Thread {
+		String old_host;
 		ArrayList<String[]> mods;
 		ArrayList<String> pickedHosts;
-                SpawnThread(String key, ArrayList<String[]> mods, ArrayList<String> pickedHosts){
-                	this.key = key;
+
+		SpawnThread(String old_host, ArrayList<String[]> mods, ArrayList<String> pickedHosts) {
+			this.old_host = old_host;
 			this.mods = mods;
 			this.pickedHosts = pickedHosts;
 		}
 
-                public void run() {
-                	respawn(key, mods, pickedHosts);
+		public void run() {
+			respawn(old_host, mods, pickedHosts);
 		}
-        }   
-    static class PingThread extends Thread {
+	}
 
+	/**
+	 * PingThread: Repeatedly pings backend, every three seconds.
+	 * @author DylanHR
+	 *
+	 */
+	static class PingThread extends Thread {
 
-		PingThread(){
+		PingThread() {
 		}
 
 		public void run() {
-			while(true){
+			while (true) {
 				try {
 					Thread.sleep(3000);
-				} catch (InterruptedException e){
+				} catch (InterruptedException e) {
 					e.printStackTrace();
-				} 
-				pingAll();
-				//pingBackend(false);
+				}
+				
+				pingBackend(true);
 			}
 		}
 	}
+
+	/*
+	 * Thread for testing system, ignore. Times spawning host on server.
+	 */
 	static class TestThread extends Thread {
 		String host;
 
-                TestThread(String host){
+		TestThread(String host) {
 			this.host = host;
-                }
-
-                public void run() {
-                	System.out.println("Spawning " + host);
-               	 	long start = System.nanoTime();
-                	spawnNode(host, HOSTS.get("3.94.170.64"));
-                	long end = System.nanoTime();
-                	System.out.print(host + " ");
-                	System.out.println((end-start)/1000000);
 		}
-        }
-    
-    public static void main(String args[]) throws Exception {
-    	System.out.println("RMI server started");
-    	loadResources();
-	loadPool();
-	obj = new RmiServer();
-    	Registry registry = LocateRegistry.createRegistry(8099);
-    	RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(obj, 8096);
-        
-                
-        //Instantiate RmiServer
 
-        //RmiServer obj = new RmiServer();
+		public void run() {
+			System.out.println("Spawning " + host);
+			long start = System.nanoTime();
+			spawnNode(host, HOSTS.get("3.94.170.64"));
+			long end = System.nanoTime();
+			System.out.print(host + " ");
+			System.out.println((end - start) / 1000000);
+		}
+	}
 
-        // Bind this object instance to the name "RmiServer"
-        registry.bind("RepServer", stub); 
-        //Naming.rebind("//:8097/RmiServer", obj);
-        System.out.println("RepServer bound in registry");
-        for (String host : HOST_POOL.keySet()){
-		//System.out.println("Spawning " + host);
-                       // long start = System.nanoTime();
-                       // spawnNode(host, HOSTS.get("3.94.170.64"));
-                     //   long end = System.nanoTime();
-                   //     System.out.print(host + " ");
-                 //System.out.println((end-start)/1000000);
-	} 
-	PingThread pt = new PingThread();
-        pt.start();
-    }
+	/*
+	 * Main method: loads resources, starts up RMI server, starts ping thread.
+	 */
+	public static void main(String args[]) throws Exception {
+		System.out.println("RMI server started");
+		loadResources();
+		loadPool();
+		rmi = new RmiServer();
+		Registry registry = LocateRegistry.createRegistry(8099);
+		RmiServerIntf stub = (RmiServerIntf) UnicastRemoteObject.exportObject(rmi, 8096);
+
+		registry.bind("RepServer", stub);
+		
+		System.out.println("RepServer bound in registry");
+//		for (String host : HOST_POOL.keySet()) {
+//			// System.out.println("Spawning " + host);
+//			// long start = System.nanoTime();
+//			// spawnNode(host, HOSTS.get("3.94.170.64"));
+//			// long end = System.nanoTime();
+//			// System.out.print(host + " ");
+//			// System.out.println((end-start)/1000000);
+//		}
+		PingThread pt = new PingThread();
+		pt.start();
+	}
 }
