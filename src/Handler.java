@@ -152,12 +152,9 @@ public class Handler implements Runnable {
 						//if cache failed, use Replication Manager
 						if (host == null || numIOExceptions > 0) {
 							finalOutput.append("Cache miss\n");
-							System.out.println("Host1: " + host);
 							host = replicationServer.getIP(doc);
-							System.out.println("Host2: " + host);
 							fileLocationCache.put(doc, host);
 							numIOExceptions += 1;
-							System.out.println("contacted RMI server");
 						}
 						
 						System.out.println(fileLocationCache.printMap());
@@ -165,12 +162,10 @@ public class Handler implements Runnable {
 						finalOutput.append("Host is: " + host + "\n");
 						server = new Socket(host, SERVER_PORT);
 						server.setSoTimeout(TIMEOUT_LENGTH);
-						System.out.println("created new socket");
 						inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 						outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
 						ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 						serverThread.start();
-						System.out.println("started new thread");
 						NumThreads++;
 						finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
 						
