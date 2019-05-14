@@ -388,11 +388,12 @@ public class RmiServer implements RmiServerIntf {
 		System.out.println();
 		System.out.println(indexMap.get("/doc2.html").get(0));
 		System.out.println();
+		Random rand = new Random();
 		if (!indexMap.containsKey(key)) {
-			return null;
+			List<String> keys = new ArrayList<String>(indexMap.keySet());
+			return keys.get(rand.nextInt(keys.size()));
 
 		} else {
-			Random rand = new Random();
 			int size = indexMap.get(key).size();
 			return indexMap.get(key).get(rand.nextInt(size));
 		}

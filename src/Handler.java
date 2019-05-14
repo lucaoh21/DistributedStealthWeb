@@ -160,38 +160,28 @@ public class Handler implements Runnable {
 							System.out.println("contacted RMI server");
 						}
 						
-						//the requested document is not available
-						if (host == null) {
-							System.out.println("failed to locate document");
-							String notFoundMessage = "<html><head>\n<title>404 Not Found</title>\n</head><body>\n" + 
-									"<h1>Not Found</h1>\n<p>The requested URL " + doc + " was not found on this server.</p>\n</body></html>\n";
-							char[] response = notFoundMessage.toCharArray();
-							outClient.write(response, 0, response.length);
-                                        		outClient.flush();
-							System.out.println("finished write");
-						} else {
-							System.out.println(fileLocationCache.printMap());
-							
-							finalOutput.append("Host is: " + host + "\n");
-							server = new Socket(host, SERVER_PORT);
-							server.setSoTimeout(TIMEOUT_LENGTH);
-							System.out.println("created new socket");
-							inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
-							outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
-							ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
-							serverThread.start();
-							System.out.println("started new thread");
-							NumThreads++;
-							finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
-							
-							//write request to the server
-							outServer.write(request, 0, numChars);
-							outServer.flush();
-							
-							//print out the complete output
-							System.out.println(finalOutput.toString());
-							finalOutput = new StringBuilder();		
-						}
+						System.out.println(fileLocationCache.printMap());
+						
+						finalOutput.append("Host is: " + host + "\n");
+						server = new Socket(host, SERVER_PORT);
+						server.setSoTimeout(TIMEOUT_LENGTH);
+						System.out.println("created new socket");
+						inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
+						outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
+						ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
+						serverThread.start();
+						System.out.println("started new thread");
+						NumThreads++;
+						finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
+						
+						//write request to the server
+						outServer.write(request, 0, numChars);
+						outServer.flush();
+						
+						//print out the complete output
+						System.out.println(finalOutput.toString());
+						finalOutput = new StringBuilder();		
+						
 						break;
 						
 					} catch (UnknownHostException e) {
