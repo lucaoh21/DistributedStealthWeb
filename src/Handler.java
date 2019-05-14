@@ -71,6 +71,7 @@ public class Handler implements Runnable {
 		BufferedWriter outClient;
 		char[] reply;
 
+
 		ServerThread(String host, Socket server, BufferedReader inServer, BufferedWriter outClient){
 			this.host = host;
 			this.server = server;
@@ -127,10 +128,8 @@ public class Handler implements Runnable {
 
 		//handles client to proxy connection
 		try {
-			
 			int numChars;
 			while((numChars = inClient.read(request, 0, request.length)) != -1) {
-						
 				//parse request to get document name
 				finalOutput.append("Matching requested file with server.");
 				String req_string = new String(request);
@@ -149,32 +148,39 @@ public class Handler implements Runnable {
 				int numIOExceptions = 0;
 				while(numIOExceptions < 2) {
 					try {
-						
 						host = fileLocationCache.get(doc);
 						//if cache failed, use Replication Manager
 						if (host == null || numIOExceptions > 0) {
 							finalOutput.append("Cache miss\n");
+							System.out.println("Host1: " + host);
 							host = replicationServer.getIP(doc);
+							System.out.println("Host2: " + host);
 							fileLocationCache.put(doc, host);
 							numIOExceptions += 1;
+							System.out.println("contacted RMI server");
 						}
 						
 						//the requested document is not available
 						if (host == null) {
+							System.out.println("failed to locate document");
 							String notFoundMessage = "<html><head>\n<title>404 Not Found</title>\n</head><body>\n" + 
 									"<h1>Not Found</h1>\n<p>The requested URL " + doc + " was not found on this server.</p>\n</body></html>\n";
-							//char[] response = notFoundMessage.toCharArray();
-							outClient.write(notFoundMessage);
+							char[] response = notFoundMessage.toCharArray();
+							outClient.write(response, 0, response.length);
+                                        		outClient.flush();
+							System.out.println("finished write");
 						} else {
 							System.out.println(fileLocationCache.printMap());
 							
 							finalOutput.append("Host is: " + host + "\n");
 							server = new Socket(host, SERVER_PORT);
 							server.setSoTimeout(TIMEOUT_LENGTH);
+							System.out.println("created new socket");
 							inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 							outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
 							ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 							serverThread.start();
+							System.out.println("started new thread");
 							NumThreads++;
 							finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
 							

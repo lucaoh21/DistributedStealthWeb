@@ -1,7 +1,6 @@
 JFLAGS = -g
 JC = javac
 CLASSES = \
-        RmiClient.java \
 	RmiServer.java \
 	RmiServerIntf.java
 MY_INSTALL_DIR=httpcomponents-client-4.5.2/lib
