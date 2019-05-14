@@ -46,17 +46,21 @@ import java.lang.InterruptedException;
  */
 
 public class RmiServer implements RmiServerIntf {
-	private static RmiServer rmi;
 	public static final String MESSAGE = "Hello World";
-	private static HashMap<String, ArrayList<String>> INDEX;
-	private static HashMap<String, ArrayList<String>> HOSTS;
-	private static HashMap<String, String> HOST_POOL;
-	private static String INDEX_PATH = "../system_config/dist-index.txt";
-	private static String HOST_POOL_PATH = "../system_config/ip-list.txt";
-	private static CloseableHttpClient HTTP_CLIENT = HttpClients.createDefault();
-	private static String SPAWN_CMD = "../scripts/system_commands/spawn/spawn_node.sh ";
-	private static String FILE_MOVE_CMD = "../scripts/system_commands/spawn/inter_server_scp.sh ";
-	private static String START_CMD = "../scripts/system_commands/start_node.sh ";
+	private static final String INDEX_PATH = "../system_config/dist-index.txt";
+	private static final String HOST_POOL_PATH = "../system_config/ip-list.txt";
+	private static final CloseableHttpClient HTTP_CLIENT = HttpClients.createDefault();
+	private static final String SPAWN_CMD = "../scripts/system_commands/spawn/spawn_node.sh ";
+	private static final String FILE_MOVE_CMD = "../scripts/system_commands/spawn/inter_server_scp.sh ";
+	private static final String START_CMD = "../scripts/system_commands/start_node.sh ";
+	
+	//mapping of document filename to list of servers storing document
+	private static HashMap<String, ArrayList<String>> indexMap;
+	//mapping of server to list of files it stores
+	private static HashMap<String, ArrayList<String>> hostMap;
+	//mapping of server to health
+	private static HashMap<String, String> hostPool;
+	private static RmiServer rmi;
 
 	public RmiServer() throws RemoteException {
 	}
@@ -96,8 +100,8 @@ public class RmiServer implements RmiServerIntf {
 		// copy documents
 		for (String doc : docs) {
 			String source = "localhost";
-			if (INDEX.containsKey(doc)) {
-				source = INDEX.get(doc).get(0);
+			if (indexMap.containsKey(doc)) {
+				source = indexMap.get(doc).get(0);
 			} else {
 				System.out.println("Lost Doc: " + doc);
 				continue;
@@ -130,8 +134,8 @@ public class RmiServer implements RmiServerIntf {
 	 *...STEALTH_WEB_HOME/system_config/dist-index.txt.
 	 */
 	private static void loadResources() {
-		INDEX = new HashMap<String, ArrayList<String>>();
-		HOSTS = new HashMap<String, ArrayList<String>>();
+		indexMap = new HashMap<String, ArrayList<String>>();
+		hostMap = new HashMap<String, ArrayList<String>>();
 		FileReader file;
 		try {
 			file = new FileReader(INDEX_PATH);
@@ -145,17 +149,17 @@ public class RmiServer implements RmiServerIntf {
 					System.out.println("error reading distributed index!");
 					System.exit(1);
 				} else {
-					if (INDEX.containsKey(tokens[0])) {
-						INDEX.get(tokens[0]).add(tokens[1]);
+					if (indexMap.containsKey(tokens[0])) {
+						indexMap.get(tokens[0]).add(tokens[1]);
 					} else {
-						INDEX.put(tokens[0], new ArrayList<String>());
-						INDEX.get(tokens[0]).add(tokens[1]);
+						indexMap.put(tokens[0], new ArrayList<String>());
+						indexMap.get(tokens[0]).add(tokens[1]);
 					}
-					if (HOSTS.containsKey(tokens[1])) {
-						HOSTS.get(tokens[1]).add(tokens[0]);
+					if (hostMap.containsKey(tokens[1])) {
+						hostMap.get(tokens[1]).add(tokens[0]);
 					} else {
-						HOSTS.put(tokens[1], new ArrayList<String>());
-						HOSTS.get(tokens[1]).add(tokens[0]);
+						hostMap.put(tokens[1], new ArrayList<String>());
+						hostMap.get(tokens[1]).add(tokens[0]);
 					}
 
 				}
@@ -167,21 +171,21 @@ public class RmiServer implements RmiServerIntf {
 		}
 	}
 
-
 	/**
 	 * LoadPool: Load the entire host pool from disk. STEALTH_WEB_HOME/system_config/ip-list.txt.
 	 */
 	private static void loadPool() {
-		HOST_POOL = new HashMap<String, String>();
+		hostPool = new HashMap<String, String>();
 		FileReader file;
 		try {
 			file = new FileReader(HOST_POOL_PATH);
 			BufferedReader buf_reader = new BufferedReader(file);
 			String line;
 			System.out.println("load host pool");
+			
 			while ((line = buf_reader.readLine()) != null) {
-				if (!HOST_POOL.containsKey(line)) {
-					HOST_POOL.put(line, "healthy");
+				if (!hostPool.containsKey(line)) {
+					hostPool.put(line, "healthy");
 				}
 			}
 		} catch (FileNotFoundException e) {
@@ -198,8 +202,8 @@ public class RmiServer implements RmiServerIntf {
 	 * @return String newHost or "NO HOSTS LEFT"
 	 */
 	public static String pickHost(ArrayList<String> pickedHosts) {
-		for (String newHost : HOST_POOL.keySet()) {
-			if (!HOSTS.containsKey(newHost) && !pickedHosts.contains(newHost)) {
+		for (String newHost : hostPool.keySet()) {
+			if (!hostMap.containsKey(newHost) && !pickedHosts.contains(newHost)) {
 				pickedHosts.add(newHost);
 				return newHost;
 			}
@@ -238,6 +242,7 @@ public class RmiServer implements RmiServerIntf {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			
 		} catch (URISyntaxException e) {
 			System.out.println("Syntax Exception");
 		} catch (HttpHostConnectException e) {
@@ -260,37 +265,38 @@ public class RmiServer implements RmiServerIntf {
 		// reconfigure HOSTS
 		for (String[] mod : mods) {
 			if (mod.length == 2) {
-				HOSTS.put(mod[0], HOSTS.get(mod[1]));
-				HOSTS.remove(mod[1]);
+				hostMap.put(mod[0], hostMap.get(mod[1]));
+				hostMap.remove(mod[1]);
 			} else if (mod.length == 1) {
-				HOSTS.remove(mod[0]);
+				hostMap.remove(mod[0]);
 			}
 		}
 		
 		// reconfigure INDEX
 		for (String[] mod : mods) {
 			if (mod.length == 2) {
-				for (String doc : INDEX.keySet()) {
-					if (INDEX.get(doc).contains(mod[1])) {
-						INDEX.get(doc).remove(mod[1]);
-						INDEX.get(doc).add(mod[0]);
+				for (String doc : indexMap.keySet()) {
+					if (indexMap.get(doc).contains(mod[1])) {
+						indexMap.get(doc).remove(mod[1]);
+						indexMap.get(doc).add(mod[0]);
 					}
 				}
 			} else if (mod.length == 1) {
-				for (String doc : INDEX.keySet()) {
-					if (INDEX.get(doc).contains(mod[0])) {
-						INDEX.get(doc).remove(mod[-1]);
+				for (String doc : indexMap.keySet()) {
+					if (indexMap.get(doc).contains(mod[0])) {
+						indexMap.get(doc).remove(mod[-1]);
 					}
 				}
 			}
 		}
 		System.out.println("Index Reconfigured");
 	}
+	
 	/**
 	 * pingAll: send a ping to every host in HOST_POOL.
 	 */
 	private static void pingAll() {
-		for (String host : HOST_POOL.keySet()) {
+		for (String host : hostPool.keySet()) {
 			ping(host);
 		}
 	}
@@ -304,7 +310,7 @@ public class RmiServer implements RmiServerIntf {
 	private static void respawn(String old_host, ArrayList<String[]> mods, ArrayList<String> pickedHosts) {
 		String newHost = pickHost(pickedHosts);
 		System.out.println("spawning on " + newHost);
-		int result = spawnNode(newHost, HOSTS.get(old_host));
+		int result = spawnNode(newHost, hostMap.get(old_host));
 		if (result == 0) {
 			mods.add(new String[] { newHost, old_host });
 		} else {
@@ -323,13 +329,15 @@ public class RmiServer implements RmiServerIntf {
 		ArrayList<SpawnThread> threads = new ArrayList<SpawnThread>();
 		ArrayList<String> pickedHosts = new ArrayList<String>();
 		long startTime = System.nanoTime();
-		for (String old_host : HOSTS.keySet()) {
+		
+		for (String old_host : hostMap.keySet()) {
 			if (v) {
 				System.out.print("Pinging " + old_host + "...");
 			}
+			
 			String[] status = ping(old_host);
-			if (HOST_POOL.containsKey(old_host)) {
-				HOST_POOL.put(old_host, status[0]);
+			if (hostPool.containsKey(old_host)) {
+				hostPool.put(old_host, status[0]);
 				if (status[0] == "unhealthy") {
 					SpawnThread re = new SpawnThread(old_host, mods, pickedHosts);
 					re.start();
@@ -340,6 +348,7 @@ public class RmiServer implements RmiServerIntf {
 			}
 		}
 		System.out.println("waiting for spawning threads");
+		
 		for (SpawnThread re : threads) {
 			try {
 				re.join();
@@ -351,11 +360,13 @@ public class RmiServer implements RmiServerIntf {
 		long endTime = System.nanoTime();
 		long dur = (endTime - startTime) / 1000000;
 		if (v) {System.out.println("Spawn duration for " + Integer.toString(threads.size()) + "servers: " + Long.toString(dur));}
-		for (String host : HOSTS.keySet()) {
-			if (v) {System.out.println(host + " -> " + Arrays.toString(HOSTS.get(host).toArray()));}
+		
+		for (String host : hostMap.keySet()) {
+			if (v) {System.out.println(host + " -> " + Arrays.toString(hostMap.get(host).toArray()));}
 		}
-		for (String doc : INDEX.keySet()) {
-			if (v) {System.out.println(doc + " -> " + Arrays.toString(INDEX.get(doc).toArray()));}
+		
+		for (String doc : indexMap.keySet()) {
+			if (v) {System.out.println(doc + " -> " + Arrays.toString(indexMap.get(doc).toArray()));}
 		}
 		if (v) {
 			if (v) {System.out.println("Backend Ping Complete!");}
@@ -376,8 +387,8 @@ public class RmiServer implements RmiServerIntf {
 	public String getIP(String key) throws RemoteException {
 		Random rand = new Random();
 
-		if (!INDEX.containsKey(key)) {
-			List<String> keys = new ArrayList<String>(INDEX.keySet());
+		if (!indexMap.containsKey(key)) {
+			List<String> keys = new ArrayList<String>(indexMap.keySet());
 			key = keys.get(rand.nextInt(keys.size()));
 
 		} else {
@@ -444,7 +455,7 @@ public class RmiServer implements RmiServerIntf {
 		public void run() {
 			System.out.println("Spawning " + host);
 			long start = System.nanoTime();
-			spawnNode(host, HOSTS.get("3.94.170.64"));
+			spawnNode(host, hostMap.get("3.94.170.64"));
 			long end = System.nanoTime();
 			System.out.print(host + " ");
 			System.out.println((end - start) / 1000000);
@@ -465,14 +476,6 @@ public class RmiServer implements RmiServerIntf {
 		registry.bind("RepServer", stub);
 		
 		System.out.println("RepServer bound in registry");
-//		for (String host : HOST_POOL.keySet()) {
-//			// System.out.println("Spawning " + host);
-//			// long start = System.nanoTime();
-//			// spawnNode(host, HOSTS.get("3.94.170.64"));
-//			// long end = System.nanoTime();
-//			// System.out.print(host + " ");
-//			// System.out.println((end-start)/1000000);
-//		}
 		PingThread pt = new PingThread();
 		pt.start();
 	}

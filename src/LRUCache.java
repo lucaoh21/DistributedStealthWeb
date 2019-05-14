@@ -2,6 +2,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/*
+ * This class implements an LRU style cache using a LinkedHashMap. The cache
+ * has a maximum size set by the user and evicts the oldest entry automatically
+ * if there are too many entries.
+ */
 public class LRUCache {
 	
 	private final Map<String, String> cache;
@@ -11,6 +16,9 @@ public class LRUCache {
 
 			private static final long serialVersionUID = 1L;
 
+			/*
+			 * Override the remove method to only remove if we have more than maxEntries.
+			 */
 			@Override
             protected boolean removeEldestEntry(Map.Entry<String, String> eldest){            
                return size() > maxEntries;
@@ -31,6 +39,9 @@ public class LRUCache {
 		}
 	}
 	
+	/*
+	 * Prints out the keys and values of a cache.
+	 */
 	public String printMap() {
 
 		StringBuilder string = new StringBuilder();
@@ -38,7 +49,10 @@ public class LRUCache {
 		for (Entry<String, String> key : cache.entrySet()) {
 			string.append(key + ", ");
 		}
-		return string.substring(0, string.length()-2).toString();
+		if(string.length() != 0) {
+			return string.substring(0, string.length()-2).toString();
+		}
+		return string.toString();
 	}
 
 }
