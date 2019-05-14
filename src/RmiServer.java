@@ -4,6 +4,7 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.lang.Float;
@@ -396,7 +397,7 @@ public class RmiServer implements RmiServerIntf {
 		int random;
 		int size;
 		if (indexMap.containsKey(key)) {
-			ArrayList<String> possibleIP = indexMap.get(key).clone();
+			ArrayList<String> possibleIP = indexMap.get(key);
 			while (possibleIP.size() != 0) {
 				size = possibleIP.size();
 				random = rand.nextInt(size);
@@ -410,7 +411,7 @@ public class RmiServer implements RmiServerIntf {
 		}
 		
 		HashSet ipSet = hostMap.keySet();
-		ArrayList<String> possibleIP = new ArrayList<String>(ipSet).clone();
+		ArrayList<String> possibleIP = new ArrayList<String>(ipSet);
 		while (possibleIP.size() != 0) {
 			size = possibleIP.size();
 			random = rand.nextInt(size);
