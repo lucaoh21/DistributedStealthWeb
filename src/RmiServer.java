@@ -61,6 +61,7 @@ public class RmiServer implements RmiServerIntf {
 	//mapping of server to health
 	private static HashMap<String, String> hostPool;
 	private static RmiServer rmi;
+	private static ArrayList<String> limboHosts = new ArrayList<String>();
 
 	public RmiServer() throws RemoteException {
 	}
@@ -330,6 +331,8 @@ public class RmiServer implements RmiServerIntf {
 		ArrayList<String> pickedHosts = new ArrayList<String>();
 		long startTime = System.nanoTime();
 		
+		limboHosts.clear();
+		
 		for (String old_host : hostMap.keySet()) {
 			if (v) {
 				System.out.print("Pinging " + old_host + "...");
@@ -339,6 +342,7 @@ public class RmiServer implements RmiServerIntf {
 			if (hostPool.containsKey(old_host)) {
 				hostPool.put(old_host, status[0]);
 				if (status[0] == "unhealthy") {
+					limboHosts.add(old_host);
 					SpawnThread re = new SpawnThread(old_host, mods, pickedHosts);
 					re.start();
 					threads.add(re);
@@ -371,6 +375,8 @@ public class RmiServer implements RmiServerIntf {
 		if (v) {
 			if (v) {System.out.println("Backend Ping Complete!");}
 		}
+		
+		limboHosts.clear();
 
 	}
 	
@@ -386,16 +392,37 @@ public class RmiServer implements RmiServerIntf {
 	 */
 	public String getIP(String key) throws RemoteException {
 		Random rand = new Random();
-		if (!indexMap.containsKey(key)) {
-			List<String> keys = new ArrayList<String>(indexMap.keySet());
-			key = keys.get(rand.nextInt(keys.size()));
-			int size = indexMap.get(key).size();
-			return indexMap.get(key).get(rand.nextInt(size));
-
-		} else {
-			int size = indexMap.get(key).size();
-			return indexMap.get(key).get(rand.nextInt(size));
+		String value;
+		int random;
+		int size;
+		if (indexMap.containsKey(key)) {
+			ArrayList<String> possibleIP = indexMap.get(key);
+			while (possibleIP.size() != 0) {
+				size = possibleIP.size();
+				random = rand.nextInt(size);
+				value = possibleIP.get(random);
+				if (limboHosts.contains(value)) {
+					possibleIP.remove(random);
+				} else {
+					return value;
+				}
+			}
 		}
+		
+		ArrayList<String> possibleIP = new ArrayList<String>(indexMap.values());
+		while (possibleIP.size() != 0) {
+			size = possibleIP.size();
+			random = rand.nextInt(size);
+			value = possibleIP.get(random);
+			if (limboHosts.contains(value)) {
+				possibleIP.remove(random);
+			} else {
+				return value;
+			}
+		}
+		
+		return null;
+	
 	}
 
 	/**

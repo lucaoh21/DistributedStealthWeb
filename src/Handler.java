@@ -131,7 +131,6 @@ public class Handler implements Runnable {
 			int numChars;
 			while((numChars = inClient.read(request, 0, request.length)) != -1) {
 				//parse request to get document name
-				finalOutput.append("Matching requested file with server.");
 				String req_string = new String(request);
 				Matcher m = FILE_REGEX.matcher(req_string);
 				m.find();
