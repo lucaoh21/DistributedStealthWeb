@@ -17,30 +17,54 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 
 /*
- * 
+ * A handler class that gets created as a new thread by the ProxyServer for
+ * each client. The handler takes care of communication between the client and
+ * the backend server. It utilizes sockets to establish a connection. It then reads
+ * in a request, parses it, and calls the Replication Manager if the file location is not
+ * stored in the cache. The handler then requests the file from the backend server and passes
+ * it along to the client.
  */ 
 public class Handler implements Runnable {
 
+	//used to determine what file is being requested
+	private static final Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
+	private static final int SERVER_PORT = 8505;
+	private static final int TIMEOUT_LENGTH = 3000;
+	private static final int REPLY_LENGTH = 4096;
+	private static final int REQUEST_LENGTH = 1024;
+	
+	//connection to the client and the backend server
 	private Socket client;
 	private Socket server;
+	//used for communication in and out from client and server
 	private BufferedReader inClient;
 	private BufferedWriter outClient;
 	private BufferedReader inServer;
 	private BufferedWriter outServer;
-	private Pattern FILE_REGEX = Pattern.compile("/[\\d\\w]*[.html]*");
+	
+	//tracking the number of threads running
 	private int NumThreads = 0;
+	
+	//reference to the Replication Manager and cache from the proxy
 	private RmiServerIntf replicationServer;
-	private StringBuilder finalOutput = new StringBuilder();
 	private LRUCache fileLocationCache;
+	
+	//accumulates messages and outputs them as one when request is serviced
+	private StringBuilder finalOutput = new StringBuilder();
+
 
 	public Handler(Socket client, RmiServerIntf replicationServer, LRUCache fileLocationCache) {
-
 		this.client = client;
 		this.replicationServer = replicationServer;
 		this.fileLocationCache = fileLocationCache;
 	}
 
+	/*
+	 * Thread that is spawned before request is passed to server, in order to handle the response 
+	 * from the server back to the client. Thread closes when there is nothing else to read.
+	 */
 	class ServerThread extends Thread {
+		//the IP of the backend server to contact
 		String host;
 		Socket server;
 		BufferedReader inServer;
@@ -52,75 +76,67 @@ public class Handler implements Runnable {
 			this.server = server;
 			this.inServer = inServer;
 			this.outClient = outClient;
-			this.reply = new char[4096];
+			this.reply = new char[REPLY_LENGTH];
 		}
 
 		public void run() {
 			int numChars;
+			
 			try {
-				StringBuilder testString = new StringBuilder();
+				//reads messages from server and writes them out to the client
 				while ((numChars = inServer.read(reply, 0, reply.length)) != -1) {
-					for(int i = 0; i < reply.length; i++) {
-						testString.append(reply[i]);
-					}
-					System.out.println("Request: " + testString.toString());
 					outClient.write(reply, 0, numChars);
 					outClient.flush();
 				}
+				
 			} catch (SocketTimeoutException e) {
 				finalOutput.append("Exception: socket timeout\n");
-				//System.out.println("socket timedout");
 			} catch (IOException e){
 				System.out.println("io exception");
 			} finally {
+				
 				try {
 					finalOutput.append("Connection with server " + server.getInetAddress() + " closed\n");
 					server.close();
-					//System.out.println("server closed");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
-
 		}
 	}
 
+	/*
+	 * The 'main' method for the handler class. This method sets up input and output to the client
+	 * and the server. After the request from the client has been read in, it attempts to find the
+	 * file location in the cache. If this fails, it makes an RPC to the Replication Manager for a
+	 * location. It then spawns a thread to handle the response from the server and writes out the 
+	 * request to the server.
+	 */
 	@Override
 	public void run() {
 		
-		char[] request = new char[1024];
+		char[] request = new char[REQUEST_LENGTH];
 		
 		// set up client streams
 		try {
 			inClient = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			outClient = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
-			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		
-		// thread handling client to proxy connection
-	
+		//handles client to proxy connection
 		try {
+			
 			int numChars;
-					
 			while((numChars = inClient.read(request, 0, request.length)) != -1) {
 						
-//				for(int i = 0; i < request.length; i++) {
-//						
-//					System.out.print(request[i]);
-//				}
-						
-				// get doc and ip of machine with doc
-				//System.out.println("matching");
+				//parse request to get document name
 				finalOutput.append("Matching requested file with server.");
 				String req_string = new String(request);
 				Matcher m = FILE_REGEX.matcher(req_string);
 				m.find();
 				String doc = m.group();
-				//String doc = String.copyValueOf(m.group().toCharArray(), 1, m.group().length()-1);
-				//System.out.println("Doc is: " + doc);
 				finalOutput.append("Filename is: " + doc + "\n");
 				String host = null;
 				
@@ -135,6 +151,7 @@ public class Handler implements Runnable {
 					try {
 						
 						host = fileLocationCache.get(doc);
+						//if cache failed, use Replication Manager
 						if (host == null || numIOExceptions > 0) {
 							finalOutput.append("Cache miss\n");
 							host = replicationServer.getIP(doc);
@@ -144,30 +161,28 @@ public class Handler implements Runnable {
 						
 						//the requested document is not available
 						if (host == null) {
-							String notFoundMessage = "<html><head>\n" + 
-									"<title>404 Not Found</title>\n" + 
-									"</head><body>\n" + 
-									"<h1>Not Found</h1>\n" + 
-									"<p>The requested URL " + doc + " was not found on this server.</p>\n" + 
-									"</body></html>\n";
+							String notFoundMessage = "<html><head>\n<title>404 Not Found</title>\n</head><body>\n" + 
+									"<h1>Not Found</h1>\n<p>The requested URL " + doc + " was not found on this server.</p>\n</body></html>\n";
 							//char[] response = notFoundMessage.toCharArray();
 							outClient.write(notFoundMessage);
 						} else {
 							System.out.println(fileLocationCache.printMap());
 							
 							finalOutput.append("Host is: " + host + "\n");
-							server = new Socket(host, 8505);
-							server.setSoTimeout(3000);
-							System.out.println("SOCKET CREATED");
+							server = new Socket(host, SERVER_PORT);
+							server.setSoTimeout(TIMEOUT_LENGTH);
 							inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 							outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
 							ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 							serverThread.start();
 							NumThreads++;
 							finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
-														
+							
+							//write request to the server
 							outServer.write(request, 0, numChars);
 							outServer.flush();
+							
+							//print out the complete output
 							System.out.println(finalOutput.toString());
 							finalOutput = new StringBuilder();		
 						}
@@ -180,9 +195,7 @@ public class Handler implements Runnable {
 						numIOExceptions += 1;
 						e.printStackTrace();
 					} 
-				}
-				
-						
+				}			
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -192,12 +205,9 @@ public class Handler implements Runnable {
 			try {
 				finalOutput.append("Connection with client " + client.getInetAddress() + " closed\n");
 				client.close();
-				//System.out.println("client closed");
 			} catch (IOException e){
 				e.printStackTrace();
 			}
 		}
-					
-		
 	}
 }
