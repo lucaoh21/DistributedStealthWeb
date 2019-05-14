@@ -385,13 +385,12 @@ public class RmiServer implements RmiServerIntf {
 	 * getIP: RMI method, get ip with the specified key. Picks a random ip from set
 	 */
 	public String getIP(String key) throws RemoteException {
-		System.out.println();
-		System.out.println(indexMap.get("/doc2.html").get(0));
-		System.out.println();
 		Random rand = new Random();
 		if (!indexMap.containsKey(key)) {
 			List<String> keys = new ArrayList<String>(indexMap.keySet());
-			return keys.get(rand.nextInt(keys.size()));
+			key = keys.get(rand.nextInt(keys.size()))
+			int size = indexMap.get(key).size();
+			return indexMap.get(key).get(rand.nextInt(size));
 
 		} else {
 			int size = indexMap.get(key).size();
