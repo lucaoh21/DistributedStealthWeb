@@ -396,7 +396,7 @@ public class RmiServer implements RmiServerIntf {
 		int random;
 		int size;
 		if (indexMap.containsKey(key)) {
-			ArrayList<String> possibleIP = indexMap.get(key);
+			ArrayList<String> possibleIP = indexMap.get(key).clone();
 			while (possibleIP.size() != 0) {
 				size = possibleIP.size();
 				random = rand.nextInt(size);
@@ -409,7 +409,8 @@ public class RmiServer implements RmiServerIntf {
 			}
 		}
 		
-		ArrayList<String> possibleIP = new ArrayList<String>(indexMap.values());
+		HashSet ipSet = hostMap.keySet();
+		ArrayList<String> possibleIP = new ArrayList<String>(ipSet).clone();
 		while (possibleIP.size() != 0) {
 			size = possibleIP.size();
 			random = rand.nextInt(size);
