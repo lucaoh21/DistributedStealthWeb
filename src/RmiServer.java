@@ -57,13 +57,13 @@ public class RmiServer implements RmiServerIntf {
         	String line = "";
 		String total_lines = "6008";
         	while ((line = reader.readLine()) != null) {
-        		System.out.print(count);
-			System.out.print("/"+total_lines +"\r");
+        	//	System.out.print(count);
+		//		System.out.print("/"+total_lines +"\r");
 			count++;
         	}
 		result = p.waitFor();
-		System.out.println("Node built on " + host);
-		System.out.println(result);
+		//System.out.println("Node built on " + host);
+		//System.out.println(result);
     	} catch (Exception e){
 		e.printStackTrace();
 		return result;
@@ -77,13 +77,13 @@ public class RmiServer implements RmiServerIntf {
 			continue;
 		}
 		try { 
-			System.out.println(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
+		//	System.out.println(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
 			Process p = Runtime.getRuntime().exec(FILE_MOVE_CMD + source + " " + host + " " + doc.replace("/", ""));
                 	BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
                 	String line = "";
                 	while ((line = reader.readLine()) != null) {
-                        	System.out.println(line);
+                  //      	System.out.println(line);
                 	}
                 	result = p.waitFor();
 			System.out.println(result);
@@ -93,11 +93,11 @@ public class RmiServer implements RmiServerIntf {
 		}
 	}
 	try {
-		System.out.println(START_CMD + host);
+		//System.out.println(START_CMD + host);
 		Process p = Runtime.getRuntime().exec(START_CMD + host);
 		result = p.waitFor();
-		System.out.println("Started node on " + host);
-		System.out.println(result);
+		//System.out.println("Started node on " + host);
+		//System.out.println(result);
         }catch (Exception e){
                         e.printStackTrace();
                         return result;
@@ -176,7 +176,7 @@ public class RmiServer implements RmiServerIntf {
 	
     
     private static String[] ping(String ip){
-    
+   	long startTime = System.nanoTime(); 
 	try {
     		URI uri = new URIBuilder()
     				.setScheme("http")
@@ -184,18 +184,19 @@ public class RmiServer implements RmiServerIntf {
     				.setPath("/")
     				.build();
     		HttpGet httpget = new HttpGet("http://"+ip+":8505/");
-    		long startTime = System.nanoTime();
     		CloseableHttpResponse response = HTTP_CLIENT.execute(httpget);
-    		long endTime = System.nanoTime();
-
-    		long duration = (endTime - startTime)/1000000;
-        	try {
-        		response.close();
+		
+		try {
+        		 long endTime = System.nanoTime();
+        long duration = (endTime - startTime)/1000000;
+                System.out.print(ip + " ");
+                System.out.println(duration);
+			response.close();
         		System.out.println(response.getStatusLine().getStatusCode());
 			if (response.getStatusLine().getStatusCode() == 200) {
-        			return new String[] {"healthy", Float.toString(duration)};
+        			return new String[] {"healthy", Long.toString(duration)};
         		} else {
-        			return new String[] {"unhealthy", Float.toString(duration)};
+        			return new String[] {"unhealthy", Long.toString(duration)};
         		}
         	} catch (IOException e) {
         		e.printStackTrace();
@@ -210,8 +211,6 @@ public class RmiServer implements RmiServerIntf {
 	} catch (IOException e) {
 		System.out.println("io exception");
     	} 
-    	
-    	
     	return new String[] {"unhealthy", "unknown"};
     }
     
@@ -243,7 +242,11 @@ public class RmiServer implements RmiServerIntf {
 	}
 	System.out.println("index reconfigured");
     }
-
+    private static void pingAll(){
+	for (String host : HOST_POOL.keySet()){
+		ping(host);
+	}
+	}
 
     private static void respawn(String key,ArrayList<String[]> mods, ArrayList<String> pickedHosts){
          String newHost = pickHost(pickedHosts);
@@ -310,7 +313,7 @@ public class RmiServer implements RmiServerIntf {
     		key = keys.get(rand.nextInt(keys.size()));
     	
     	} else {
-    		key == null;
+    		key = null;
     	}
     	
     	return key;
@@ -357,10 +360,27 @@ public class RmiServer implements RmiServerIntf {
 				} catch (InterruptedException e){
 					e.printStackTrace();
 				} 
-				pingBackend(true);
+				pingAll();
+				//pingBackend(false);
 			}
 		}
 	}
+	static class TestThread extends Thread {
+		String host;
+
+                TestThread(String host){
+			this.host = host;
+                }
+
+                public void run() {
+                	System.out.println("Spawning " + host);
+               	 	long start = System.nanoTime();
+                	spawnNode(host, HOSTS.get("3.94.170.64"));
+                	long end = System.nanoTime();
+                	System.out.print(host + " ");
+                	System.out.println((end-start)/1000000);
+		}
+        }
     
     public static void main(String args[]) throws Exception {
     	System.out.println("RMI server started");
@@ -379,7 +399,14 @@ public class RmiServer implements RmiServerIntf {
         registry.bind("RepServer", stub); 
         //Naming.rebind("//:8097/RmiServer", obj);
         System.out.println("RepServer bound in registry");
-        
+        for (String host : HOST_POOL.keySet()){
+		//System.out.println("Spawning " + host);
+                       // long start = System.nanoTime();
+                       // spawnNode(host, HOSTS.get("3.94.170.64"));
+                     //   long end = System.nanoTime();
+                   //     System.out.print(host + " ");
+                 //System.out.println((end-start)/1000000);
+	} 
 	PingThread pt = new PingThread();
         pt.start();
     }
