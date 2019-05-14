@@ -410,7 +410,7 @@ public class RmiServer implements RmiServerIntf {
 			}
 		}
 		
-		HashSet ipSet = hostMap.keySet();
+		Set<String> ipSet = hostMap.keySet();
 		ArrayList<String> possibleIP = new ArrayList<String>(ipSet);
 		while (possibleIP.size() != 0) {
 			size = possibleIP.size();
