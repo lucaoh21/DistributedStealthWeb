@@ -121,7 +121,7 @@ public class Handler implements Runnable {
 				//String doc = String.copyValueOf(m.group().toCharArray(), 1, m.group().length()-1);
 				//System.out.println("Doc is: " + doc);
 				finalOutput.append("Filename is: " + doc + "\n");
-				String host;
+				String host = null;
 				
 				/*
 				 * System attempts to use file location stored in cache. If that fails, because the
@@ -157,14 +157,14 @@ public class Handler implements Runnable {
 							finalOutput.append("Host is: " + host + "\n");
 							server = new Socket(host, 8505);
 							server.setSoTimeout(3000);
-							
+							System.out.println("SOCKET CREATED");
 							inServer = new BufferedReader(new InputStreamReader(server.getInputStream()));
 							outServer = new BufferedWriter(new OutputStreamWriter(server.getOutputStream()));
 							ServerThread serverThread = new ServerThread(host, server, inServer, outClient);
 							serverThread.start();
 							NumThreads++;
 							finalOutput.append("Number of active threads: " + java.lang.Thread.activeCount() + "\n");
-							
+														
 							outServer.write(request, 0, numChars);
 							outServer.flush();
 							System.out.println(finalOutput.toString());

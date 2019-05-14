@@ -58,7 +58,7 @@ public class ProxyServer {
 		
 		int port = 8080;
 		String local = "localhost";
-		FileLocationCache = new LRUCache(10);
+		FileLocationCache = new LRUCache(2);
 		
 		RmiServerIntf replicationServer;
 		try {
