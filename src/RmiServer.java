@@ -388,7 +388,7 @@ public class RmiServer implements RmiServerIntf {
 		Random rand = new Random();
 		if (!indexMap.containsKey(key)) {
 			List<String> keys = new ArrayList<String>(indexMap.keySet());
-			key = keys.get(rand.nextInt(keys.size()))
+			key = keys.get(rand.nextInt(keys.size()));
 			int size = indexMap.get(key).size();
 			return indexMap.get(key).get(rand.nextInt(size));
 
