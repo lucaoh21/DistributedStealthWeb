@@ -4,15 +4,12 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.lang.Float;
+import java.util.*;
 
 // map and streaming
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.FileReader;
