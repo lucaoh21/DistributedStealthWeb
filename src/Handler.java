@@ -16,8 +16,9 @@ import java.io.FileReader;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 
-//here
-
+/*
+ * 
+ */ 
 public class Handler implements Runnable {
 
 	private Socket client;
